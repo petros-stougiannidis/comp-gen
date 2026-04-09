@@ -30,6 +30,9 @@ class Grammar:
 
         self.terminals = set(terminals)
         self.nonTerminals = set(nonTerminals)
+
+        # self.terminals = set(terminals) | {"$"}
+        # self.nonTerminals = set(nonTerminals) | {"S'"}
         
         self.actions = dict()
         self.delta = defaultdict(set)
@@ -38,12 +41,16 @@ class Grammar:
                 self.delta[A].add(alternative)
                 self.actions[(A, alternative)] = action
         
+        # artificial_start_symbol = "S'"
+        # self.delta[artificial_start_symbol] = {(self.startSymbol,)}
+        # self.startSymbol = artificial_start_symbol
+        
         self.reduce()
         self.computeEmptyAttributes()
         self.computeFirst1Sets()
         self.computeFollow1Sets()
         self.computeLL1Conflicts()
-    
+        
     def productions(self):
         return [(A, rightHandSide) for A in self.delta for rightHandSide in self.delta[A]]
     
@@ -76,9 +83,9 @@ class Grammar:
                     if numberOfUnproductiveNonTerminals[B] == 0:
                         productiveProductions.add(B)
         
-        productiveProductions = defaultdict(list)
+        productiveProductions = defaultdict(set)
         for A, rightHandSide in {production for production, count in numberOfUnproductiveNonTerminals.items() if count == 0}:
-            productiveProductions[A].append(rightHandSide)
+            productiveProductions[A].add(rightHandSide)
         
         # Graph reachability algorithm determining which nonterminals are reachable
         reachableNonTerminals = set()
@@ -92,7 +99,7 @@ class Grammar:
                         if B in self.nonTerminals:
                             currenltyReachableNonTerminals.add(B)
 
-        reachableAndProductiveProductions = {A:productiveProductions[A] for A in reachableNonTerminals}
+        reachableAndProductiveProductions = {A: set(productiveProductions[A]) for A in reachableNonTerminals}
         self.delta = reachableAndProductiveProductions
 
         reachableAndProductiveNonTerminals = reachableNonTerminals
