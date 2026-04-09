@@ -1,0 +1,12 @@
+# unicode characters for console output
+epsilon = '\u03B5'
+Sigma = '\u03A3'
+delta = '\u03B4'
+elementOf = '\u220A'
+notElementOf = '\u2209'
+rightArrow = '\u2192'
+setUnion = '\u2229'
+subscript1 = '\u2081'
+dot = '\u2022'
+emptySet = '\u2205'
+concat1Symbol = '\u2218\u2081'
