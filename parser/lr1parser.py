@@ -70,8 +70,10 @@ class LR1Item:
         return hash((self.lhs, self.rhs, self.dot, frozenset(self.lookahead)))
 
     def __eq__(self, other):
+        if not isinstance(other, LR1Item):
+            return False
         return (self.lhs, self.rhs, self.dot, self.lookahead) == \
-               (other.lhs, other.rhs, other.dot, other.lookahead)
+            (other.lhs, other.rhs, other.dot, other.lookahead)
 
     def __repr__(self):
         before = self.rhs[:self.dot]
@@ -101,6 +103,7 @@ def epsilon_closure(items, grammar):
 
 
 def build_canonical_LR1_automaton(grammar):
+    states = set()
     transition = defaultdict(lambda: defaultdict(lambda: None))
     start_item = LR1Item(grammar.startSymbol, ("A",) , lookahead={'$'}) # TODO revert test
 
@@ -110,7 +113,7 @@ def build_canonical_LR1_automaton(grammar):
     while worklist:
         
         state = worklist.pop() # list of items
-        
+        states.add(state)
         new_state_core = defaultdict(list)
         for item in state:
             symbol = item.next_symbol()
@@ -121,7 +124,71 @@ def build_canonical_LR1_automaton(grammar):
         for symbol, core in new_state_core.items():
             new_state = LR1State(core, grammar)
             transition[state][symbol] = new_state
-            if new_state not in worklist:
+            if new_state not in states:
                 worklist.append(new_state)
 
-    return transition
+    action_table = defaultdict(lambda: defaultdict(lambda: None))
+    goto_table = defaultdict(lambda: defaultdict(lambda: None))
+
+    for state in states:
+        for terminal in grammar.terminals | {'$'}:
+            for item in state:
+                # for lookahead in item.lookahead:
+                if terminal in concat1(grammar.first1(item.get_right_context()), item.lookahead):
+                    action_table[state][terminal] = "s"
+                if item.is_complete() and terminal in item.lookahead:
+                    action_table[state][terminal] = item
+
+    print(len(states))
+    print_action_table_debug(states, action_table, grammar)
+
+    # return transition
+
+def print_action_table_debug(states, action_table, grammar):
+    state_list = list(states)
+    state_id = {s: i for i, s in enumerate(state_list)}
+
+    terminals = list(grammar.terminals) 
+
+    # Header
+    header = ["STATE"] + sorted(terminals)
+    print(" | ".join(f"{h:^15}" for h in header))
+    print("-" * (17 * len(header)))
+
+    for s in state_list:
+        row = [str(state_id[s])]
+
+        for t in terminals:
+            entry = action_table[s].get(t)
+
+            if entry is None:
+                cell = ""
+
+            # SHIFT (even if broken)
+            elif isinstance(entry, tuple) and len(entry) >= 2 and entry[0] == "s":
+                target = entry[1]
+                if target in state_id:
+                    cell = f"s{state_id[target]}"
+                else:
+                    cell = f"s({target})"   # shows the bug
+
+            # REDUCE (if you ever store it properly later)
+            elif isinstance(entry, tuple) and entry[0] == "r":
+                lhs, rhs = entry[1]
+                cell = f"r({lhs}→{''.join(rhs)})"
+
+            # ACCEPT
+            elif entry == ("acc",) or entry == "acc":
+                cell = "acc"
+
+            # RAW LR1Item (your current case)
+            elif hasattr(entry, "lhs"):
+                cell = f"{entry.lhs}→{''.join(entry.rhs)}"
+
+            # Fallback (super important for debugging)
+            else:
+                cell = str(entry)
+
+            row.append(cell)
+
+        print(" | ".join(f"{c:^15}" for c in row))

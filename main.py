@@ -18,19 +18,13 @@ Token.register("b", r"b")
 Token.register("c", r"c")
 
 scanner = Scanner()
-
 if len(sys.argv) > 1 and sys.argv[1] == "pdf":
     scanner.nfa.generatePDF()
-
-# for token in scanner.scan("scanner/test.txt"):
-#     if not token.token_type == "WHITESPACE":
-#         print(token)
-
-productions = dict()
 
 def action():
     pass
 
+productions = dict()
 productions["S"] = {("A",): action}
 productions["A"] = {("A", "B", "a"): action,
                     ("c",): action}
@@ -38,10 +32,5 @@ productions["B"] = {("b",): action,
                     tuple(): action}
 
 grammar = Grammar("S", productions)
-
 # print(grammar)
 build_canonical_LR1_automaton(grammar)
-
-# i = LR1Item("A", "ABC", )
-# print(i)
-# print(i.get_right_context_of_next_symbol())

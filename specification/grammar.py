@@ -28,10 +28,10 @@ class Grammar:
         if set(terminals) & set(nonTerminals):
             raise ValueError(f"The set of terminals and nonterminals are not disjoint: {unicode.Sigma} {unicode.setUnion} N = {set(terminals) & set(nonTerminals)}")
 
-        self.terminals = set(terminals)
+        # self.terminals = set(terminals)
         self.nonTerminals = set(nonTerminals)
 
-        # self.terminals = set(terminals) | {"$"}
+        self.terminals = set(terminals) | {"$"}
         # self.nonTerminals = set(nonTerminals) | {"S'"}
         
         self.actions = dict()
