@@ -39,7 +39,7 @@ productions["B"] = {("b",): action,
 
 grammar = Grammar("S", productions)
 
-print(grammar)
+# print(grammar)
 build_canonical_LR1_automaton(grammar)
 
 # i = LR1Item("A", "ABC", )

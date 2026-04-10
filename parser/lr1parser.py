@@ -2,102 +2,126 @@ from specification import unicode
 from specification.grammar import concat1
 from collections import defaultdict
 
+class LR1State:
+    def __init__(self, core, grammar):
+        self.core = core
+        self.closure = epsilon_closure(core, grammar)
+        self.identity = frozenset({(item.lhs, item.rhs, item.dot, frozenset(item.lookahead)) for item in self.closure})
+    
+    def items(self):
+        for item in self.closure:
+            yield item
+
+    def __hash__(self):
+        return hash(self.identity)
+
+    def __eq__(self, other):
+        return self.identity == other.identity
+
+    def __iter__(self):
+        return self.items()
+
+class Closure:
+    def __init__(self):
+        self.lookahead = {}  # (lhs, rhs, dot) -> set(lookahead)
+
+    def add(self, item):
+        core = (item.lhs, item.rhs, item.dot)
+
+        if core not in self.lookahead:
+            self.lookahead[core] = set(item.lookahead)
+            return True  # new item
+
+        old_size = len(self.lookahead[core])
+        self.lookahead[core] |= set(item.lookahead)
+
+        return len(self.lookahead[core]) > old_size  # changed?
+
+    def items(self):
+        for (lhs, rhs, dot), lookahead in self.lookahead.items():
+            yield LR1Item(lhs, rhs, dot, lookahead)
+
+    def __iter__(self):
+        return self.items()
+
 class LR1Item:
     def __init__(self, lhs, rhs, dot=0, lookahead=None):
-        self.lhs = lhs
-        self.rhs = rhs          
-        self.dot = dot       
-        self.lookahead = lookahead if lookahead else set()
+        self.lhs = lhs           
+        self.rhs = tuple(rhs)
+        self.dot = dot                  
+        self.lookahead = set(lookahead or [])
+
+    def core(self):
+        return (self.lhs, self.rhs, self.dot)
 
     def next_symbol(self):
         return self.rhs[self.dot] if self.dot < len(self.rhs) else None
 
     def get_right_context(self):
         return self.rhs[self.dot:]
-
+            
     def is_complete(self):
         return self.dot == len(self.rhs)
 
     def advance(self):
-        return LR1Item(self.lhs, self.rhs, self.dot + 1, set(self.lookahead))
+        return LR1Item(self.lhs, self.rhs, self.dot + 1, self.lookahead)
 
     def __hash__(self):
-        return hash((self.lhs, self.rhs, self.dot))
+        return hash((self.lhs, self.rhs, self.dot, frozenset(self.lookahead)))
 
     def __eq__(self, other):
-        return (self.lhs, self.rhs, self.dot) == (other.lhs, other.rhs, other.dot)
+        return (self.lhs, self.rhs, self.dot, self.lookahead) == \
+               (other.lhs, other.rhs, other.dot, other.lookahead)
 
     def __repr__(self):
-        processedRightHandSide = self.rhs[:self.dot]
-        unprocessedRightHandSide = self.rhs[self.dot:]
-        return f"[{self.lhs}{unicode.rightArrow}{processedRightHandSide}{unicode.dot}{unprocessedRightHandSide}]"
+        before = self.rhs[:self.dot]
+        after = self.rhs[self.dot:]
+        lookahead = self.lookahead if self.lookahead else "{}"
+        return f"[{self.lhs} → {before} • {after}, {lookahead}]"
 
-def epsilon_closure(start_item, grammar):
-    
-    lookahead_sets = defaultdict(set)
-    lookahead_sets[start_item] = set(start_item.lookahead)
+def epsilon_closure(items, grammar):
+    closure = Closure()
+    worklist = []
 
-    worklist = [start_item]
+    for item in items:
+        closure.add(item)
+        worklist.append(item)
 
     while worklist:
-
         item = worklist.pop()
-        current_lookahead = lookahead_sets[item]
-
-        marked_symbol = item.next_symbol()
-        if marked_symbol in grammar.nonTerminals:
-            right_context = item.advance().get_right_context()
-
-            for rhs in grammar.delta[marked_symbol]:
-                lookahead = grammar.first1(right_context)
-
-                if unicode.epsilon in lookahead:
-                    lookahead.remove(unicode.epsilon)
-                    lookahead |= current_lookahead
-
-                new_item = LR1Item(marked_symbol, rhs)
-        
-                if not lookahead <= lookahead_sets[new_item]:
-                    lookahead_sets[new_item] |= lookahead
+        A = item.next_symbol()
+        if A in grammar.nonTerminals:
+            right_context  = item.advance().get_right_context()
+            for rhs in grammar.delta[A]:
+                lookahead = concat1(grammar.first1(right_context), item.lookahead)
+                new_item = LR1Item(A, rhs, lookahead=lookahead)
+                if closure.add(new_item):
                     worklist.append(new_item)
-                    updated = True
+    return closure
 
-
-    return lookahead_sets
 
 def build_canonical_LR1_automaton(grammar):
-    start_item = LR1Item("S'", (grammar.startSymbol,), lookahead={"$"})
-    
-    action_table = defaultdict(lambda : defaultdict(lambda : None))
-    states = dict()
-    transition = defaultdict(lambda: defaultdict(int))
-    states[0] = epsilon_closure(start_item, grammar)
-    
-    next_id = 0
-    worklist = [0]
-    next_id += 1
+    transition = defaultdict(lambda: defaultdict(lambda: None))
+    start_item = LR1Item(grammar.startSymbol, ("A",) , lookahead={'$'}) # TODO revert test
+
+    start_state = LR1State([start_item], grammar)
+    worklist = [start_state]
 
     while worklist:
-        state = worklist.pop()
+        
+        state = worklist.pop() # list of items
+        
+        new_state_core = defaultdict(list)
+        for item in state:
+            symbol = item.next_symbol()
+            if not symbol:
+                continue
+            new_state_core[symbol].append(item.advance())
 
-        for item, lookahead_set in states[state].items():
-            if item.is_complete():
-                for symbol in lookahead_set:
-                    action_table[state][symbol] = item
+        for symbol, core in new_state_core.items():
+            new_state = LR1State(core, grammar)
+            transition[state][symbol] = new_state
+            if new_state not in worklist:
+                worklist.append(new_state)
 
-            for symbol in lookahead_set:
-                if concat1(grammar.first1(item.get_right_context()), {symbol}):
-                    action_table[state][symbol] = "SHIFT"
-
-            transition[state][item.next_symbol()] = next_id
-            states[next_id] = epsilon_closure(item.advance(), grammar)
-            if not next_id in worklist:
-                worklist.append(next_id)
-            next_id += 1
-    
-
-
-
-
-
-
+    return transition
