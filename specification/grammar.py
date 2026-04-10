@@ -28,11 +28,8 @@ class Grammar:
         if set(terminals) & set(nonTerminals):
             raise ValueError(f"The set of terminals and nonterminals are not disjoint: {unicode.Sigma} {unicode.setUnion} N = {set(terminals) & set(nonTerminals)}")
 
-        # self.terminals = set(terminals)
+        self.terminals = set(terminals)
         self.nonTerminals = set(nonTerminals)
-
-        self.terminals = set(terminals) | {"$"}
-        # self.nonTerminals = set(nonTerminals) | {"S'"}
         
         self.actions = dict()
         self.delta = defaultdict(set)
@@ -41,15 +38,19 @@ class Grammar:
                 self.delta[A].add(alternative)
                 self.actions[(A, alternative)] = action
         
-        # artificial_start_symbol = "S'"
-        # self.delta[artificial_start_symbol] = {(self.startSymbol,)}
-        # self.startSymbol = artificial_start_symbol
-        
+        self.terminals = set(terminals) | {"$"}
+        self.nonTerminals = set(nonTerminals) | {"S'"}
+
+        self.artificial_start_symbol = "S'"
+        self.delta[self.artificial_start_symbol] = {(self.startSymbol,)}
+        self.startSymbol = self.artificial_start_symbol
+
         self.reduce()
         self.computeEmptyAttributes()
         self.computeFirst1Sets()
         self.computeFollow1Sets()
         self.computeLL1Conflicts()
+
         
     def productions(self):
         return [(A, rightHandSide) for A in self.delta for rightHandSide in self.delta[A]]
@@ -169,8 +170,9 @@ class Grammar:
         self.follow1Set = defaultdict(set)
         variableDependencyGraph = {A:set() for A in self.nonTerminals}
 
-        #None represents the lookahead pointing to the end of input
-        self.follow1Set[self.startSymbol].add(None)
+        #None (or $) represents the lookahead pointing to the end of input
+        # TODO: decide
+        self.follow1Set[self.startSymbol].add("$")
 
         for (A, rightHandSide) in self.productions():
             for index, B in enumerate(rightHandSide):

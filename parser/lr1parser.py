@@ -2,25 +2,6 @@ from specification import unicode
 from specification.grammar import concat1
 from collections import defaultdict
 
-class LR1State:
-    def __init__(self, core, grammar):
-        self.core = core
-        self.closure = epsilon_closure(core, grammar)
-        self.identity = frozenset({(item.lhs, item.rhs, item.dot, frozenset(item.lookahead)) for item in self.closure})
-    
-    def items(self):
-        for item in self.closure:
-            yield item
-
-    def __hash__(self):
-        return hash(self.identity)
-
-    def __eq__(self, other):
-        return self.identity == other.identity
-
-    def __iter__(self):
-        return self.items()
-
 class Closure:
     def __init__(self):
         self.lookahead = {}  # (lhs, rhs, dot) -> set(lookahead)
@@ -81,6 +62,25 @@ class LR1Item:
         lookahead = self.lookahead if self.lookahead else "{}"
         return f"[{self.lhs} → {before} • {after}, {lookahead}]"
 
+class LR1State:
+    def __init__(self, core, grammar):
+        self.core = core
+        self.closure = epsilon_closure(core, grammar)
+        self.identity = frozenset({(item.lhs, item.rhs, item.dot, frozenset(item.lookahead)) for item in self.closure})
+    
+    def items(self):
+        for item in self.closure:
+            yield item
+
+    def __hash__(self):
+        return hash(self.identity)
+
+    def __eq__(self, other):
+        return self.identity == other.identity
+
+    def __iter__(self):
+        return self.items()
+
 def epsilon_closure(items, grammar):
     closure = Closure()
     worklist = []
@@ -101,94 +101,102 @@ def epsilon_closure(items, grammar):
                     worklist.append(new_item)
     return closure
 
+class LR1Parser:
+    def __init__(self, grammar):
+        self.grammar = grammar
+        self.states, self.goto = self.canonical_LR1_automaton()
+        self.action_table = self.action_table()
+        self.print_action_table()
 
-def build_canonical_LR1_automaton(grammar):
-    states = set()
-    transition = defaultdict(lambda: defaultdict(lambda: None))
-    start_item = LR1Item(grammar.startSymbol, ("A",) , lookahead={'$'}) # TODO revert test
+    def canonical_LR1_automaton(self):
+        grammar = self.grammar
+        states = set()
+        transition = defaultdict(lambda: defaultdict(lambda: None))
+        start_items = [LR1Item(grammar.startSymbol, rhs, lookahead={'$'}) for rhs in grammar.delta[grammar.startSymbol]]
 
-    start_state = LR1State([start_item], grammar)
-    worklist = [start_state]
+        start_state = LR1State(start_items, grammar)
+        worklist = [start_state]
 
-    while worklist:
-        
-        state = worklist.pop() # list of items
-        states.add(state)
-        new_state_core = defaultdict(list)
-        for item in state:
-            symbol = item.next_symbol()
-            if not symbol:
-                continue
-            new_state_core[symbol].append(item.advance())
-
-        for symbol, core in new_state_core.items():
-            new_state = LR1State(core, grammar)
-            transition[state][symbol] = new_state
-            if new_state not in states:
-                worklist.append(new_state)
-
-    action_table = defaultdict(lambda: defaultdict(lambda: None))
-    goto_table = defaultdict(lambda: defaultdict(lambda: None))
-
-    for state in states:
-        for terminal in grammar.terminals | {'$'}:
+        while worklist:
+            
+            state = worklist.pop()
+            states.add(state)
+            new_state_core = defaultdict(list)
             for item in state:
-                # for lookahead in item.lookahead:
-                if terminal in concat1(grammar.first1(item.get_right_context()), item.lookahead):
-                    action_table[state][terminal] = "s"
-                if item.is_complete() and terminal in item.lookahead:
-                    action_table[state][terminal] = item
+                symbol = item.next_symbol()
+                if not symbol:
+                    continue
+                new_state_core[symbol].append(item.advance())
 
-    print(len(states))
-    print_action_table_debug(states, action_table, grammar)
+            for symbol, core in new_state_core.items():
+                new_state = LR1State(core, grammar)
+                transition[state][symbol] = new_state
+                if new_state not in states:
+                    worklist.append(new_state)
 
-    # return transition
+        return states, transition
 
-def print_action_table_debug(states, action_table, grammar):
-    state_list = list(states)
-    state_id = {s: i for i, s in enumerate(state_list)}
+    def action_table(self):
+        grammar = self.grammar
+        action_table = defaultdict(lambda: defaultdict(lambda: None))
 
-    terminals = list(grammar.terminals) 
+        for state in self.states:
+            for terminal in grammar.terminals:
+                for item in state:     
+                    if item.is_complete() and terminal in item.lookahead:
+                        action_table[state][terminal] = item
 
-    # Header
-    header = ["STATE"] + sorted(terminals)
-    print(" | ".join(f"{h:^15}" for h in header))
-    print("-" * (17 * len(header)))
+                    if  item.next_symbol() in grammar.terminals \
+                        and terminal in concat1(grammar.first1(item.get_right_context()), item.lookahead):
 
-    for s in state_list:
-        row = [str(state_id[s])]
+                        action_table[state][terminal] = "s"
+        return action_table
 
-        for t in terminals:
-            entry = action_table[s].get(t)
+    def print_action_table(self):
+        state_list = list(self.states)
+        state_id = {s: i for i, s in enumerate(state_list)}
 
-            if entry is None:
-                cell = ""
+        terminals = list(self.grammar.terminals) 
 
-            # SHIFT (even if broken)
-            elif isinstance(entry, tuple) and len(entry) >= 2 and entry[0] == "s":
-                target = entry[1]
-                if target in state_id:
-                    cell = f"s{state_id[target]}"
+        # Header
+        header = ["STATE"] + terminals
+        print(" | ".join(f"{h:^15}" for h in header))
+        print("-" * (17 * len(header)))
+
+        for s in state_list:
+            row = [str(state_id[s])]
+
+            for t in terminals:
+                entry = self.action_table[s].get(t)
+
+                if entry is None:
+                    cell = ""
+
+                # SHIFT (even if broken)
+                elif isinstance(entry, tuple) and len(entry) >= 2 and entry[0] == "s":
+                    target = entry[1]
+                    if target in state_id:
+                        cell = f"s{state_id[target]}"
+                    else:
+                        cell = f"s({target})"   # shows the bug
+
+                # REDUCE (if you ever store it properly later)
+                elif isinstance(entry, tuple) and entry[0] == "r":
+                    lhs, rhs = entry[1]
+                    cell = f"r({lhs}→{''.join(rhs)})"
+
+                # ACCEPT
+                elif entry == ("acc",) or entry == "acc":
+                    cell = "acc"
+
+                # RAW LR1Item (your current case)
+                elif hasattr(entry, "lhs"):
+                    cell = f"{entry.lhs}→{''.join(entry.rhs)}"
+
+                # Fallback (super important for debugging)
                 else:
-                    cell = f"s({target})"   # shows the bug
+                    cell = str(entry)
 
-            # REDUCE (if you ever store it properly later)
-            elif isinstance(entry, tuple) and entry[0] == "r":
-                lhs, rhs = entry[1]
-                cell = f"r({lhs}→{''.join(rhs)})"
+                row.append(cell)
 
-            # ACCEPT
-            elif entry == ("acc",) or entry == "acc":
-                cell = "acc"
-
-            # RAW LR1Item (your current case)
-            elif hasattr(entry, "lhs"):
-                cell = f"{entry.lhs}→{''.join(entry.rhs)}"
-
-            # Fallback (super important for debugging)
-            else:
-                cell = str(entry)
-
-            row.append(cell)
-
-        print(" | ".join(f"{c:^15}" for c in row))
+            print(" | ".join(f"{c:^15}" for c in row))
