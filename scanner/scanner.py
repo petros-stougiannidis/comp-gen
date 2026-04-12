@@ -52,6 +52,7 @@ class Scanner:
             else:
                 yield Token(None, text[position])
                 position += 1
+        yield Token("$", "$")
 
     def scan_file(self, file_name, encoding="utf-8"):
         with open(file_name, "r", encoding=encoding) as file:

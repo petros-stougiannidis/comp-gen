@@ -42,6 +42,7 @@ class Grammar:
         self.nonTerminals = set(nonTerminals) | {"S'"}
 
         self.artificial_start_symbol = "S'"
+        self.original_start_symbol = self.startSymbol
         self.delta[self.artificial_start_symbol] = {(self.startSymbol,)}
         self.startSymbol = self.artificial_start_symbol
 

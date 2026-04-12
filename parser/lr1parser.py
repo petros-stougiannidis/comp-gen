@@ -1,5 +1,5 @@
 from specification import unicode
-from specification.grammar import concat1
+from specification.grammar import concat1, Sequence
 from collections import defaultdict
 
 class Closure:
@@ -60,7 +60,7 @@ class LR1Item:
         before = self.rhs[:self.dot]
         after = self.rhs[self.dot:]
         lookahead = self.lookahead if self.lookahead else "{}"
-        return f"[{self.lhs} → {before} • {after}, {lookahead}]"
+        return f"[{self.lhs} → {Sequence(before)} • {Sequence(after)}, {lookahead}]"
 
 class LR1State:
     def __init__(self, core, grammar):
@@ -76,6 +76,8 @@ class LR1State:
         return hash(self.identity)
 
     def __eq__(self, other):
+        if not isinstance(other, LR1State):
+            return False
         return self.identity == other.identity
 
     def __iter__(self):
@@ -106,7 +108,7 @@ class LR1Parser:
         self.grammar = grammar
         self.states, self.goto = self.canonical_LR1_automaton()
         self.action_table = self.action_table()
-        self.print_action_table()
+        # self.print_action_table()
 
     def canonical_LR1_automaton(self):
         grammar = self.grammar
@@ -114,8 +116,8 @@ class LR1Parser:
         transition = defaultdict(lambda: defaultdict(lambda: None))
         start_items = [LR1Item(grammar.startSymbol, rhs, lookahead={'$'}) for rhs in grammar.delta[grammar.startSymbol]]
 
-        start_state = LR1State(start_items, grammar)
-        worklist = [start_state]
+        self.start_state = LR1State(start_items, grammar)
+        worklist = [self.start_state]
 
         while worklist:
             
@@ -136,67 +138,183 @@ class LR1Parser:
 
         return states, transition
 
+    # TODO: maybe make it a "conflict tabe" first?
     def action_table(self):
         grammar = self.grammar
-        action_table = defaultdict(lambda: defaultdict(lambda: None))
+        action_table = defaultdict(lambda: defaultdict(set))
 
         for state in self.states:
             for terminal in grammar.terminals:
                 for item in state:     
                     if item.is_complete() and terminal in item.lookahead:
-                        action_table[state][terminal] = item
+                        action_table[state][terminal].add(("reduce", item))
 
                     if  item.next_symbol() in grammar.terminals \
                         and terminal in concat1(grammar.first1(item.get_right_context()), item.lookahead):
 
-                        action_table[state][terminal] = "s"
+                        action_table[state][terminal].add(("shift", terminal))
+
+                    # if item.lhs == grammar.startSymbol and item.is_complete() and '$' in item.lookahead:
+                    #     action_table[state]['$'].add(("accept",))
+
         return action_table
 
+    def LR1_conflicts(self):
+        conflicts = []
+
+        for state in self.states:
+            for terminal in self.grammar.terminals:
+                actions = self.action_table[state][terminal]
+                if len(actions) > 1:
+                    conflicts.append((state, terminal, actions))
+
+        return conflicts
+
+    def print_conflicts(self):
+        conflicts = self.LR1_conflicts()
+        for state, terminal, actions in conflicts:
+            print(f"Conflict in state {id(state)} on '{terminal}':")
+            for action in actions:
+                print(f"  {action}")
+            print()
+
+    # TODO: implement
+    def patch(self, precedences):
+        precedence = {}
+        associativity = {}
+
+        for level, (assoc, operators) in enumerate(precedences):
+            for op in operators:
+                precedence[op] = level
+                associativity[op] = assoc
+
+        for state, terminal, actions in self.LR1_conflicts():
+            shifts = [a for a in actions if a[0] == "shift"]
+            reduces = [a for a in actions if a[0] == "reduce"]
+
+            # only handle shift/reduce conflicts
+            if len(shifts) == 1 and len(reduces) == 1:
+                shift = shifts[0]
+                reduce = reduces[0]
+
+                shift_op = terminal
+                reduce_item = reduce[1]
+                reduce_op = self.get_rightmost_terminal(reduce_item)
+
+                if shift_op not in precedence or reduce_op not in precedence:
+                    continue  # cannot resolve
+
+                if precedence[shift_op] > precedence[reduce_op]:
+                    chosen = shift
+                elif precedence[shift_op] < precedence[reduce_op]:
+                    chosen = reduce
+                else:
+                    # same precedence → associativity
+                    assoc = associativity[shift_op]
+                    if assoc == "left":
+                        chosen = reduce
+                    elif assoc == "right":
+                        chosen = shift
+                    else:
+                        continue  # nonassoc → leave conflict
+
+                # patch table
+                self.action_table[state][terminal] = {chosen}
+
+    def get_rightmost_terminal(self, item):
+        for symbol in reversed(item.rhs):
+            if symbol in self.grammar.terminals:
+                return symbol
+        return None
+
+
+    def parse(self, tokens):
+        final_reduction = LR1Item(self.grammar.artificial_start_symbol, self.grammar.original_start_symbol, dot=1, lookahead={'$'})
+        tokens = list(tokens)
+        
+        i = 0
+        stack = [self.start_state]
+        while True:
+            current_state = stack[-1]
+
+            token = tokens[i].token_type
+
+            actions = self.action_table[current_state][token]
+            if not actions:
+                raise SyntaxError(f"Unexpected token {token} in state {id(current_state)}")
+
+            action = next(iter(actions)) 
+            
+
+            if action[0] == "shift":
+                stack.append(self.goto[current_state][token])
+                i += 1 
+                continue
+
+            elif action[0] == "reduce":# and any([item.is_complete() for item in current_state]):
+                
+                item = action[1]
+                if item == final_reduction:
+                    return True
+                
+                for _ in range(len(item.rhs)):
+                    stack.pop()
+                stack.append(self.goto[stack[-1]][item.lhs])
+                continue
+
+        return False
+
+    
     def print_action_table(self):
         state_list = list(self.states)
         state_id = {s: i for i, s in enumerate(state_list)}
 
-        terminals = list(self.grammar.terminals) 
+        # ✅ remove WHITESPACE completely
+        terminals = [t for t in self.grammar.terminals if t != "WHITESPACE"]
+
+        # sort for stable output (optional but VERY helpful)
+        terminals = sorted(terminals)
 
         # Header
         header = ["STATE"] + terminals
-        print(" | ".join(f"{h:^15}" for h in header))
-        print("-" * (17 * len(header)))
+        col_width = 15
+
+        def fmt(x):
+            return f"{x:^{col_width}}"
+
+        print(" | ".join(fmt(h) for h in header))
+        print("-" * ((col_width + 3) * len(header)))
 
         for s in state_list:
-            row = [str(state_id[s])]
+            row = [fmt(state_id[s])]
 
             for t in terminals:
-                entry = self.action_table[s].get(t)
+                actions = self.action_table[s].get(t, set())
 
-                if entry is None:
+                if not actions:
                     cell = ""
 
-                # SHIFT (even if broken)
-                elif isinstance(entry, tuple) and len(entry) >= 2 and entry[0] == "s":
-                    target = entry[1]
-                    if target in state_id:
-                        cell = f"s{state_id[target]}"
-                    else:
-                        cell = f"s({target})"   # shows the bug
-
-                # REDUCE (if you ever store it properly later)
-                elif isinstance(entry, tuple) and entry[0] == "r":
-                    lhs, rhs = entry[1]
-                    cell = f"r({lhs}→{''.join(rhs)})"
-
-                # ACCEPT
-                elif entry == ("acc",) or entry == "acc":
-                    cell = "acc"
-
-                # RAW LR1Item (your current case)
-                elif hasattr(entry, "lhs"):
-                    cell = f"{entry.lhs}→{''.join(entry.rhs)}"
-
-                # Fallback (super important for debugging)
                 else:
-                    cell = str(entry)
+                    parts = []
 
-                row.append(cell)
+                    for action in actions:
+                        if action[0] == "shift":
+                            target = self.goto[s][t]
+                            parts.append(f"s{state_id[target]}")
 
-            print(" | ".join(f"{c:^15}" for c in row))
+                        elif action[0] == "reduce":
+                            item = action[1]
+                            rhs = " ".join(item.rhs)
+                            parts.append(f"r({item.lhs}→{rhs})")
+
+                        elif action[0] == "accept":
+                            parts.append("acc")
+
+                    cell = ",".join(parts)
+
+                # 🚨 CRITICAL: remove newlines if any
+                cell = cell.replace("\n", " ").strip()
+
+                row.append(fmt(cell))
+
+            print(" | ".join(row))
