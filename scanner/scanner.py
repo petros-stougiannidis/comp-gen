@@ -4,55 +4,63 @@ from specification.token import Token
 
 class Scanner:
     def __init__(self):
-        self.tokens = Token.get_registry()
+        self.tokens = Token.get_tokens()
 
-        self.regex = reduce(Union, [token["ast"] for token in self.tokens])
+        # build master regex
+        self.regex = reduce(Union, [ast for _, ast in self.tokens])
         self.nfa = self.regex.to_nfa()
 
+        # determine which final states correspond to the recognition of which token type
         self.exclusive_final_states = []
         remaining_final_states = set(self.nfa.final_states)
 
-        for token in self.tokens:
-            ast = token["ast"]
+        for token, ast in self.tokens:
             final_states = (ast.last | ({ast} if ast.empty else set())) & remaining_final_states
-            self.exclusive_final_states.append((token["name"], final_states))
+            self.exclusive_final_states.append((token, final_states))
             remaining_final_states -= final_states
 
-    def token_type_of(self, reachedFinalStates):
+    def recognized_token(self, reached_final_states):
         for name, exclusive_final_states in self.exclusive_final_states:
-            if reachedFinalStates & exclusive_final_states:
+            if reached_final_states & exclusive_final_states:
                 return name
         return None
 
-    def scan(self, text):
-        position = 0
-        while position < len(text):
+    def scan(self, input_string):
+        line = 0
+        start_position = 0
+        while start_position < len(input_string):
             current_states = self.nfa.start_states
             reached_final_states = None
-            end_position_of_match = None
+            end_start_position_of_match = None
 
-            i = position
-            while i < len(text):
-                current_states = self.nfa.transition(current_states, text[i])
+            # scan as far as possible, while keeping track possible matches
+            scan_position = start_position
+            while scan_position < len(input_string):
+                symbol = input_string[scan_position]
+                current_states = self.nfa.transition(current_states, symbol)
 
+                # as soon as a transition leads to an error state, stop
                 if not current_states:
                     break
 
-                if any(state in self.nfa.final_states for state in current_states):
+                if current_states & self.nfa.final_states:
                     reached_final_states = current_states
-                    end_position_of_match = i + 1
+                    end_start_position_of_match = scan_position + 1
 
-                i += 1
+                scan_position += 1
 
-            if end_position_of_match is not None:
-                name = self.token_type_of(reached_final_states)
-                value = text[position:end_position_of_match]
+            if end_start_position_of_match is not None:
+                name = self.recognized_token(reached_final_states)
+                value = input_string[start_position:end_start_position_of_match]
                 yield Token(name, value)
-                position = end_position_of_match
+                start_position = end_start_position_of_match
             else:
-                yield Token(None, text[position])
-                position += 1
-        yield Token("$", "$")
+                # TODO: implement practical error messages
+                raise ValueError(f"Lexical error at {start_position}: '{input_string[start_position]}'")
+                start_position += 1
+
+        # TODO: abstraction for EOF token
+        yield Token("$")
 
     def scan_file(self, file_name, encoding="utf-8"):
         with open(file_name, "r", encoding=encoding) as file:

@@ -1,5 +1,6 @@
 from specification import unicode
-from specification.grammar import concat1, Sequence
+from specification.grammar import concat1
+from formatting.print import Sequence
 from collections import defaultdict
 
 class Closure:
@@ -237,7 +238,7 @@ class LR1Parser:
         while True:
             current_state = stack[-1]
 
-            token = tokens[i].token_type
+            token = tokens[i].type
 
             actions = self.action_table[current_state][token]
             if not actions:

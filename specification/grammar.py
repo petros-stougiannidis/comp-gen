@@ -4,13 +4,14 @@ from itertools import combinations
 from specification import unicode
 from specification.strongly_connected_components import StronglyConnectedComponents
 from specification.token import Token
+from formatting.print import Sequence
 
 class Grammar:
 
     def __init__(self, startSymbol, productions):
         self.startSymbol = startSymbol
 
-        terminals = {token["name"] for token in Token.get_registry()}
+        terminals = {name for name, _ in Token.get_tokens()}
         nonTerminals = set(productions.keys())
         
 
@@ -267,10 +268,3 @@ class Grammar:
 
 def concat1(L1, L2):
     return L1 if unicode.epsilon not in L1 else (L1 - {unicode.epsilon}) | L2
-
-class Sequence(tuple):
-        def __repr__(self):
-            string = ""
-            for symbol in self:
-                string += str(symbol) + " "
-            return string[:-1]

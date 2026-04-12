@@ -1,24 +1,23 @@
 from scanner.regex_parser import parse_regex
 
 class Token:
-    _registry = []
+    _registry = {}
 
-    def __init__(self, token_type, value=None):
-        self.token_type = token_type
+    def __init__(self, name, value=None):
+        self.type = name
         self.value = value
 
     @classmethod
     def register(cls, name, pattern):
         ast = parse_regex(pattern)
-        token = {"name": name, "pattern": pattern, "ast": ast}
-        cls._registry.append(token)
-        return token
-
+        cls._registry[name] = ast
+    
     @classmethod
-    def get_registry(cls):
-        return cls._registry
+    def get_tokens(cls):
+        return cls._registry.items()    
 
     def __repr__(self):
         if self.value:
-            return f"{self.value}::{self.token_type}"
-        return f"{self.token_type}"
+            return f"{self.value}::{self.type}"
+        return f"{self.type}"
+
