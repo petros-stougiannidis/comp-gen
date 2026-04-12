@@ -21,9 +21,17 @@ class Item:
         return self.rhs[self.dot:]
 
     def __repr__(self):
-        before = self.rhs[:self.dot]
-        after = self.rhs[self.dot:]
-        return f"[{self.lhs} → {Sequence(before)} • {Sequence(after)}]"
+        before = Sequence(self.rhs[:self.dot])
+        after = Sequence(self.rhs[self.dot:])
+
+        if before and after:
+            return f"[{self.lhs} → {before} • {after}]"
+        elif before:
+            return f"[{self.lhs} → {before} •]"
+        elif after:
+            return f"[{self.lhs} → • {after}]"
+        else:
+            return f"[{self.lhs} → •]"
 
     def __eq__(self, other):
         if not isinstance(other, Item):
@@ -51,7 +59,16 @@ class LR1Item(Item):
             (other.lhs, other.rhs, other.dot, other.lookahead)
 
     def __repr__(self):
-        before = self.rhs[:self.dot]
-        after = self.rhs[self.dot:]
-        lookahead = self.lookahead if self.lookahead else "{}"
-        return f"[{self.lhs} → {Sequence(before)} • {Sequence(after)}, {lookahead}]"
+        before = Sequence(self.rhs[:self.dot])
+        after = Sequence(self.rhs[self.dot:])
+
+        parts = []
+        if before:
+            parts.append(str(before))
+        parts.append("•")
+        if after:
+            parts.append(str(after))
+
+        lookahead = "{" + ", ".join(sorted(self.lookahead)) + "}"
+
+        return f"[{self.lhs} → {' '.join(parts)}, {lookahead}]"

@@ -215,6 +215,7 @@ class LR1Parser:
             elif action[0] == "reduce":# and any([item.is_complete() for item in current_state]):
                 
                 item = action[1]
+                
                 if item == final_reduction:
                     return True
                 

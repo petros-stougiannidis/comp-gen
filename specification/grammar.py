@@ -3,7 +3,7 @@ from itertools import combinations
 
 from specification import unicode
 from specification.strongly_connected_components import StronglyConnectedComponents
-from formatting.print import Sequence
+from formatting.print import Sequence, print_set
 
 class Grammar:
 
@@ -229,13 +229,13 @@ class Grammar:
             lookahead_symbols2 = concat1(self.first1(alternative2), self.follow1_set[A])
             production1, production2 = Sequence(alternative1), Sequence(alternative2)
             print(f"LL1 conflict: {A} -> {production1} or {production2}")
-            print(f"First{unicode.subscript1}({production1}) {unicode.concat1} Follow{unicode.subscript1}({A}) {unicode.set_union} First{unicode.subscript1}({production2}) {unicode.concat1} Follow{unicode.subscript1}({A}) = {lookahead_symbols1&lookahead_symbols2}\n")
+            print(f"First{unicode.subscript1}({production1}) {unicode.concat1} Follow{unicode.subscript1}({A}) {unicode.set_union} First{unicode.subscript1}({production2}) {unicode.concat1} Follow{unicode.subscript1}({A}) = {print_set(lookahead_symbols1&lookahead_symbols2)}\n")
 
     def __repr__(self):
         string = "Reduced grammar:\n"
         string += f"Start symbol:\t{self.start_symbol}\n"
-        string += f"{unicode.Sigma}:\t{self.terminals}\n"
-        string += f"N:\t{self.non_terminals}\n"
+        string += f"{unicode.Sigma}:\t{print_set(self.terminals)}\n"
+        string += f"N:\t{print_set(self.non_terminals)}\n"
         string += f"{unicode.delta}:\n"
         
         for A in self.delta:
@@ -251,15 +251,15 @@ class Grammar:
         string += "\n"
 
         for A in self.non_terminals:
-            string += f"F{unicode.epsilon}({A}) = {self.epsilon_free_first1_set[A]}\n"
+            string += f"F{unicode.epsilon}({A}) = {print_set(self.epsilon_free_first1_set[A])}\n"
         string += "\n"
 
         for A in self.non_terminals:
-            string += f"First{unicode.subscript1}({A}) = {self.first1_set[A]}\n"
+            string += f"First{unicode.subscript1}({A}) = {print_set(self.first1_set[A])}\n"
         string += "\n"
         
         for A in self.non_terminals:
-            string += f"Follow{unicode.subscript1}({A}) = {self.follow1_set[A]}\n"
+            string += f"Follow{unicode.subscript1}({A}) = {print_set(self.follow1_set[A])}\n"
 
         string += f"\nLL(1): {self.is_LL1()}\n"
         return string

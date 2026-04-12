@@ -1,6 +1,9 @@
 class Sequence(tuple):
-        def __repr__(self):
-            string = ""
-            for symbol in self:
-                string += str(symbol) + " "
-            return string[:-1]
+    def __repr__(self):
+        return " ".join(map(str, self))
+
+    def __bool__(self):
+        return len(self) > 0
+
+def print_set(s):
+        return "{" + ", ".join(sorted(s)) + "}"

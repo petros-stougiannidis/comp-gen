@@ -39,7 +39,7 @@ class LL1Parser:
         
         while True:
             if print_stack:
-                print("...", stack[-3:], lookahead)
+                print("...", stack[-3:], "→ lookahead:", lookahead)
             match stack:
                 case [final_item] if lookahead == "$" and final_item == start_item.advance():
                     return True
