@@ -95,7 +95,7 @@ def epsilon_closure(items, grammar):
     while worklist:
         item = worklist.pop()
         A = item.next_symbol()
-        if A in grammar.nonTerminals:
+        if A in grammar.non_terminals:
             right_context  = item.advance().get_right_context()
             for rhs in grammar.delta[A]:
                 lookahead = concat1(grammar.first1(right_context), item.lookahead)
@@ -115,7 +115,7 @@ class LR1Parser:
         grammar = self.grammar
         states = set()
         transition = defaultdict(lambda: defaultdict(lambda: None))
-        start_items = [LR1Item(grammar.startSymbol, rhs, lookahead={'$'}) for rhs in grammar.delta[grammar.startSymbol]]
+        start_items = [LR1Item(grammar.start_symbol, rhs, lookahead={'$'}) for rhs in grammar.delta[grammar.start_symbol]]
 
         self.start_state = LR1State(start_items, grammar)
         worklist = [self.start_state]

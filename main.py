@@ -27,7 +27,10 @@ productions["E"] = {("E", "+", "E"): action,
                     ("(", "E", ")"): action,
                     ("int",): action}
 
-grammar = Grammar(startSymbol="S", productions=productions)
+grammar = Grammar(start_symbol="S", productions=productions)
+print(grammar)
+if not grammar.is_LL1():
+    grammar.print_LL1_conflicts() 
 parser = LR1Parser(grammar)
 
 precedences = [
