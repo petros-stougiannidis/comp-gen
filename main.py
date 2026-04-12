@@ -1,21 +1,22 @@
 import sys
 from specification import unicode
 from scanner.scanner import Scanner
-from specification.token import Token
+from specification.token import TokenRegistry
 from specification.grammar import Grammar
 from parser.lr1parser import LR1Parser
 from parser.ll1parser import LL1Parser
 
 # LL1
-Token.register("*", r"\*")
-Token.register("?", r"\?")
-Token.register("+", r"\+")
-Token.register("(", r"\(")
-Token.register(")", r"\)")
-Token.register("|", r"\|")
-Token.register("symbol", r"a|b")
+ll1_tokens = TokenRegistry()
+ll1_tokens.register("*", r"\*")
+ll1_tokens.register("?", r"\?")
+ll1_tokens.register("+", r"\+")
+ll1_tokens.register("(", r"\(")
+ll1_tokens.register(")", r"\)")
+ll1_tokens.register("|", r"\|")
+ll1_tokens.register("symbol", r"a|b")
 
-scanner = Scanner()
+scanner = Scanner(ll1_tokens)
 if len(sys.argv) > 1 and sys.argv[1] == "pdf":
     scanner.nfa.generatePDF()
 
@@ -34,8 +35,8 @@ productions["A3"] = {("*",): None,
 productions["atom"] = {("(", "regex", ")"): None,
                     ("symbol",): None}
 
-grammar = Grammar(start_symbol="regex", productions=productions)
-
+grammar = Grammar(start_symbol="regex", productions=productions, terminals=ll1_tokens.get_names())
+print(grammar)
 if not grammar.is_LL1():
     grammar.print_LL1_conflicts()
 
@@ -46,41 +47,42 @@ tokens = (token for token in scanner.scan("a(a?ab)*ba"))
 print(parser.parse(tokens, print_stack=True))
 
 
-# # LR1
-# Token.register("WHITESPACE", r"\s+")
-# Token.register("*", r"\*")
-# Token.register("+", r"\+")
-# Token.register("(", r"\(")
-# Token.register(")", r"\)")
-# Token.register("int", r"int")
+# LR1
+lr1_tokens = TokenRegistry()
+lr1_tokens.register("WHITESPACE", r"\s+")
+lr1_tokens.register("*", r"\*")
+lr1_tokens.register("+", r"\+")
+lr1_tokens.register("(", r"\(")
+lr1_tokens.register(")", r"\)")
+lr1_tokens.register("int", r"int")
 
-# scanner = Scanner()
-# if len(sys.argv) > 1 and sys.argv[1] == "pdf":
-#     scanner.nfa.generatePDF()
+scanner = Scanner(lr1_tokens)
+if len(sys.argv) > 1 and sys.argv[1] == "pdf":
+    scanner.nfa.generatePDF()
 
-# # TODO: implement action callbacks
-# def action():
-#     pass
+# TODO: implement action callbacks
+def action():
+    pass
 
-# productions = {}
-# productions["S"] = {("E",): action}
-# productions["E"] = {("E", "+", "E"): action,
-#                     ("E", "*", "E"): action,
-#                     ("(", "E", ")"): action,
-#                     ("int",): action}
+productions = {}
+productions["S"] = {("E",): None}
+productions["E"] = {("E", "+", "E"): None,
+                    ("E", "*", "E"): None,
+                    ("(", "E", ")"): None,
+                    ("int",): None}
 
-# grammar = Grammar(start_symbol="S", productions=productions)
-# print(grammar)
-# if not grammar.is_LL1():
-#     grammar.print_LL1_conflicts() 
-# parser = LR1Parser(grammar)
+grammar = Grammar(start_symbol="S", productions=productions, terminals=lr1_tokens.get_names())
+print(grammar)
+if not grammar.is_LL1():
+    grammar.print_LL1_conflicts() 
+parser = LR1Parser(grammar)
 
-# precedences = [
-#     ("left",  ["+","-"]),
-#     ("left",  ["*","/"]),
-# ]
-# parser.patch(precedences)
-# parser.print_LR1_conflicts()
+precedences = [
+    ("left",  ["+","-"]),
+    ("left",  ["*","/"]),
+]
+parser.patch(precedences)
+parser.print_LR1_conflicts()
 
-# tokens = (token for token in scanner.scan("int + (int * (int + int))") if token.type != "WHITESPACE")
-# print(parser.parse(tokens))
+tokens = (token for token in scanner.scan("int + (int * (int + int))") if token.type != "WHITESPACE")
+print(parser.parse(tokens))

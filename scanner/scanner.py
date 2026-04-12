@@ -3,8 +3,8 @@ from scanner.abstract_regex_tree import Regex, Union
 from specification.token import Token
 
 class Scanner:
-    def __init__(self):
-        self.tokens = Token.get_tokens()
+    def __init__(self, token_register):
+        self.tokens = token_register.get_tokens()
 
         # build master regex
         self.regex = reduce(Union, [ast for _, ast in self.tokens])

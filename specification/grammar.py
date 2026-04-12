@@ -3,17 +3,14 @@ from itertools import combinations
 
 from specification import unicode
 from specification.strongly_connected_components import StronglyConnectedComponents
-from specification.token import Token
 from formatting.print import Sequence
 
 class Grammar:
 
-    def __init__(self, start_symbol, productions):
+    def __init__(self, start_symbol, productions, terminals):
         self.start_symbol = start_symbol
 
-        terminals = {name for name, _ in Token.get_tokens()}
         non_terminals = set(productions.keys())
-        
 
         if not start_symbol in set(non_terminals):
             raise ValueError(f"Start symbol {start_symbol} {unicode.not_element_of} N")

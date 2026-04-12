@@ -1,5 +1,23 @@
 from scanner.regex_parser import parse_regex
 
+class TokenRegistry:
+    
+    def __init__(self):
+        self.tokens = {}
+
+    def register(self, name, pattern):
+        ast = parse_regex(pattern)
+        self.tokens[name] = ast
+    
+    def get_tokens(self):
+        return self.tokens.items()  
+
+    def get_names(self):
+        return self.tokens.keys()  
+
+    def get_ASTs(self):
+        return self.tokens.values()  
+
 class Token:
     _registry = {}
 
