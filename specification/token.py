@@ -6,7 +6,7 @@ class Token:
     def __init__(self, name, value=None):
         self.type = name
         self.value = value
-
+        
     @classmethod
     def register(cls, name, pattern):
         ast = parse_regex(pattern)

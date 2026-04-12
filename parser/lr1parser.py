@@ -1,41 +1,8 @@
 from specification import unicode
 from specification.grammar import concat1
+from specification.item import LR1Item
 from formatting.print import Sequence
 from collections import defaultdict
-
-class LR1Item:
-    def __init__(self, lhs, rhs, dot=0, lookahead=None):
-        self.lhs = lhs           
-        self.rhs = tuple(rhs)
-        self.dot = dot                  
-        self.lookahead = set(lookahead or [])
-
-    def next_symbol(self):
-        return self.rhs[self.dot] if self.dot < len(self.rhs) else None
-
-    def get_right_context(self):
-        return self.rhs[self.dot:]
-            
-    def is_complete(self):
-        return self.dot == len(self.rhs)
-
-    def advance(self):
-        return LR1Item(self.lhs, self.rhs, self.dot + 1, self.lookahead)
-
-    def __hash__(self):
-        return hash((self.lhs, self.rhs, self.dot, frozenset(self.lookahead)))
-
-    def __eq__(self, other):
-        if not isinstance(other, LR1Item):
-            return False
-        return (self.lhs, self.rhs, self.dot, self.lookahead) == \
-            (other.lhs, other.rhs, other.dot, other.lookahead)
-
-    def __repr__(self):
-        before = self.rhs[:self.dot]
-        after = self.rhs[self.dot:]
-        lookahead = self.lookahead if self.lookahead else "{}"
-        return f"[{self.lhs} → {Sequence(before)} • {Sequence(after)}, {lookahead}]"
 
 # data structure for accumulating lookahead symbols for LR1Items with the same core
 class Closure:
