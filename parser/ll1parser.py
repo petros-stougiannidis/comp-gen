@@ -67,6 +67,8 @@ class LL1Parser:
                 #reduce: an item was completed, pop the complete item and proceed with the next symbol of the item before
                 case [*rest, second, top] if top.is_complete() and second.next_symbol() == top.lhs:
                     #TODO execute callbacks on successful reductions
+                    if callback := self.grammar.actions[(top.lhs, top.rhs)]:
+                        callback()
                     stack.pop()
                     stack[-1] = stack[-1].advance()
                 

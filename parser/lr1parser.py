@@ -245,6 +245,9 @@ class LR1Parser:
                 item = action[1]
                 if item == final_reduction:
                     return True
+
+                if callback := self.grammar.actions[(item.lhs, item.rhs)]:
+                    callback()
                 
                 for _ in range(len(item.rhs)):
                     stack.pop()

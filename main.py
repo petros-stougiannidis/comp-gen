@@ -21,7 +21,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "pdf":
     scanner.nfa.generatePDF()
 
 productions = dict()
-productions["regex"] = {("concat", "A1"): None}
+productions["regex"] = {("concat", "A1"): lambda: print("matched regex")}
 productions["A1"] = {("|", "regex"): None,
                     tuple(): None}
 productions["concat"] = {("rep", "A2"): None}
@@ -36,15 +36,15 @@ productions["atom"] = {("(", "regex", ")"): None,
                     ("symbol",): None}
 
 grammar = Grammar(start_symbol="regex", productions=productions, terminals=ll1_tokens.get_names())
-print(grammar)
-if not grammar.is_LL1():
-    grammar.print_LL1_conflicts()
+# print(grammar)
+# if not grammar.is_LL1():
+#     grammar.print_LL1_conflicts()
 
 parser = LL1Parser(grammar)
 
 tokens = (token for token in scanner.scan("a(a?ab)*ba"))
 
-print(parser.parse(tokens, print_stack=True))
+print(parser.parse(tokens, print_stack=False))
 
 
 # LR1
@@ -54,27 +54,26 @@ lr1_tokens.register("*", r"\*")
 lr1_tokens.register("+", r"\+")
 lr1_tokens.register("(", r"\(")
 lr1_tokens.register(")", r"\)")
-lr1_tokens.register("int", r"int")
+lr1_tokens.register("int", r"\d*")
 
 scanner = Scanner(lr1_tokens)
 if len(sys.argv) > 1 and sys.argv[1] == "pdf":
     scanner.nfa.generatePDF()
 
 # TODO: implement action callbacks
-def action():
-    pass
 
 productions = {}
 productions["S"] = {("E",): None}
 productions["E"] = {("E", "+", "E"): None,
                     ("E", "*", "E"): None,
                     ("(", "E", ")"): None,
-                    ("int",): None}
+                    ("int",): lambda: print("matched int")}
 
 grammar = Grammar(start_symbol="S", productions=productions, terminals=lr1_tokens.get_names())
-print(grammar)
-if not grammar.is_LL1():
-    grammar.print_LL1_conflicts() 
+# print(grammar)
+# if not grammar.is_LL1():
+#     grammar.print_LL1_conflicts() 
+
 parser = LR1Parser(grammar)
 
 precedences = [
@@ -84,5 +83,6 @@ precedences = [
 parser.patch(precedences)
 parser.print_LR1_conflicts()
 
-tokens = (token for token in scanner.scan("int + (int * (int + int))") if token.type != "WHITESPACE")
+tokens = (token for token in scanner.scan("0 + (12 * (34 + 3))") if token.type != "WHITESPACE")
+
 print(parser.parse(tokens))
