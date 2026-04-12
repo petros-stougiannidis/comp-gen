@@ -3,38 +3,12 @@ from specification.grammar import concat1
 from formatting.print import Sequence
 from collections import defaultdict
 
-class Closure:
-    def __init__(self):
-        self.lookahead = {}  # (lhs, rhs, dot) -> set(lookahead)
-
-    def add(self, item):
-        core = (item.lhs, item.rhs, item.dot)
-
-        if core not in self.lookahead:
-            self.lookahead[core] = set(item.lookahead)
-            return True  # new item
-
-        old_size = len(self.lookahead[core])
-        self.lookahead[core] |= set(item.lookahead)
-
-        return len(self.lookahead[core]) > old_size  # changed?
-
-    def items(self):
-        for (lhs, rhs, dot), lookahead in self.lookahead.items():
-            yield LR1Item(lhs, rhs, dot, lookahead)
-
-    def __iter__(self):
-        return self.items()
-
 class LR1Item:
     def __init__(self, lhs, rhs, dot=0, lookahead=None):
         self.lhs = lhs           
         self.rhs = tuple(rhs)
         self.dot = dot                  
         self.lookahead = set(lookahead or [])
-
-    def core(self):
-        return (self.lhs, self.rhs, self.dot)
 
     def next_symbol(self):
         return self.rhs[self.dot] if self.dot < len(self.rhs) else None
@@ -63,6 +37,50 @@ class LR1Item:
         lookahead = self.lookahead if self.lookahead else "{}"
         return f"[{self.lhs} → {Sequence(before)} • {Sequence(after)}, {lookahead}]"
 
+# data structure for accumulating lookahead symbols for LR1Items with the same core
+class Closure:
+    def __init__(self):
+        self.lookahead = {}  # (lhs, rhs, dot) -> set(lookahead)
+
+    def add(self, item):
+        core = (item.lhs, item.rhs, item.dot)
+
+        if core not in self.lookahead:
+            self.lookahead[core] = set(item.lookahead)
+            return True # new item
+
+        old_size = len(self.lookahead[core])
+        self.lookahead[core] |= set(item.lookahead)
+
+        return len(self.lookahead[core]) > old_size  # changed?
+
+    def items(self):
+        for (lhs, rhs, dot), lookahead in self.lookahead.items():
+            yield LR1Item(lhs, rhs, dot, lookahead)
+
+    def __iter__(self):
+        return self.items()
+
+def epsilon_closure(items, grammar):
+    closure = Closure()
+    worklist = []
+
+    for item in items:
+        closure.add(item)
+        worklist.append(item)
+
+    while worklist:
+        item = worklist.pop()
+        A = item.next_symbol()
+        if A in grammar.non_terminals:
+            right_context = item.advance().get_right_context()
+            for rhs in grammar.delta[A]:
+                lookahead = concat1(grammar.first1(right_context), item.lookahead)
+                new_item = LR1Item(A, rhs, lookahead=lookahead)
+                if closure.add(new_item):
+                    worklist.append(new_item)
+    return closure
+
 class LR1State:
     def __init__(self, core, grammar):
         self.core = core
@@ -84,32 +102,11 @@ class LR1State:
     def __iter__(self):
         return self.items()
 
-def epsilon_closure(items, grammar):
-    closure = Closure()
-    worklist = []
-
-    for item in items:
-        closure.add(item)
-        worklist.append(item)
-
-    while worklist:
-        item = worklist.pop()
-        A = item.next_symbol()
-        if A in grammar.non_terminals:
-            right_context  = item.advance().get_right_context()
-            for rhs in grammar.delta[A]:
-                lookahead = concat1(grammar.first1(right_context), item.lookahead)
-                new_item = LR1Item(A, rhs, lookahead=lookahead)
-                if closure.add(new_item):
-                    worklist.append(new_item)
-    return closure
-
 class LR1Parser:
     def __init__(self, grammar):
         self.grammar = grammar
         self.states, self.goto = self.canonical_LR1_automaton()
         self.action_table = self.action_table()
-        # self.print_action_table()
 
     def canonical_LR1_automaton(self):
         grammar = self.grammar
@@ -139,7 +136,7 @@ class LR1Parser:
 
         return states, transition
 
-    # TODO: maybe make it a "conflict tabe" first?
+    # TODO: change action specification
     def action_table(self):
         grammar = self.grammar
         action_table = defaultdict(lambda: defaultdict(set))
@@ -155,9 +152,6 @@ class LR1Parser:
 
                         action_table[state][terminal].add(("shift", terminal))
 
-                    # if item.lhs == grammar.startSymbol and item.is_complete() and '$' in item.lookahead:
-                    #     action_table[state]['$'].add(("accept",))
-
         return action_table
 
     def LR1_conflicts(self):
@@ -171,7 +165,7 @@ class LR1Parser:
 
         return conflicts
 
-    def print_conflicts(self):
+    def print_LR1_conflicts(self):
         conflicts = self.LR1_conflicts()
         for state, terminal, actions in conflicts:
             print(f"Conflict in state {id(state)} on '{terminal}':")
@@ -228,8 +222,7 @@ class LR1Parser:
                 return symbol
         return None
 
-
-    def parse(self, tokens):
+    def parse2(self, tokens):
         final_reduction = LR1Item(self.grammar.artificial_start_symbol, self.grammar.original_start_symbol, dot=1, lookahead={'$'})
         tokens = list(tokens)
         
@@ -265,57 +258,35 @@ class LR1Parser:
 
         return False
 
-    
-    def print_action_table(self):
-        state_list = list(self.states)
-        state_id = {s: i for i, s in enumerate(state_list)}
+    def get_action(self, current_state, token):
+        actions = self.action_table[current_state][token]
+        if not actions:
+            raise SyntaxError(f"Unexpected token {token} in state {id(current_state)}")
+        return next(iter(actions)) 
 
-        # ✅ remove WHITESPACE completely
-        terminals = [t for t in self.grammar.terminals if t != "WHITESPACE"]
+    def parse(self, tokens):
+        final_reduction = LR1Item(self.grammar.artificial_start_symbol, self.grammar.original_start_symbol, dot=1, lookahead={'$'})
+        stack = [self.start_state]
 
-        # sort for stable output (optional but VERY helpful)
-        terminals = sorted(terminals)
-
-        # Header
-        header = ["STATE"] + terminals
-        col_width = 15
-
-        def fmt(x):
-            return f"{x:^{col_width}}"
-
-        print(" | ".join(fmt(h) for h in header))
-        print("-" * ((col_width + 3) * len(header)))
-
-        for s in state_list:
-            row = [fmt(state_id[s])]
-
-            for t in terminals:
-                actions = self.action_table[s].get(t, set())
-
-                if not actions:
-                    cell = ""
-
-                else:
-                    parts = []
-
-                    for action in actions:
-                        if action[0] == "shift":
-                            target = self.goto[s][t]
-                            parts.append(f"s{state_id[target]}")
-
-                        elif action[0] == "reduce":
-                            item = action[1]
-                            rhs = " ".join(item.rhs)
-                            parts.append(f"r({item.lhs}→{rhs})")
-
-                        elif action[0] == "accept":
-                            parts.append("acc")
-
-                    cell = ",".join(parts)
-
-                # 🚨 CRITICAL: remove newlines if any
-                cell = cell.replace("\n", " ").strip()
-
-                row.append(fmt(cell))
-
-            print(" | ".join(row))
+        for token in tokens:
+            current_state = stack[-1]
+            token = token.type
+            
+            action = self.get_action(current_state, token)
+            while action[0] == "reduce":
+                item = action[1]
+                if item == final_reduction:
+                    return True
+                
+                for _ in range(len(item.rhs)):
+                    stack.pop()
+                stack.append(self.goto[stack[-1]][item.lhs])
+                current_state = stack[-1]
+                action = self.get_action(current_state, token)
+            
+            if action[0] == "shift":
+                stack.append(self.goto[current_state][token])
+                current_state = stack[-1]
+                continue                
+            
+        return False

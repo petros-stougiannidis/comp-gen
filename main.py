@@ -38,22 +38,7 @@ precedences = [
     ("left",  ["*","/"]),
 ]
 parser.patch(precedences)
-parser.print_conflicts()
-# parser.print_action_table()
+parser.print_LR1_conflicts()
 
 tokens = (token for token in scanner.scan("int + (int * (int + int))") if token.type != "WHITESPACE")
 print(parser.parse(tokens))
-
-# production["S"] = {("E",): a}
-# production["E"] = {("E","+","T"): a,
-#                     ("T",): a}
-# production["T"] = {("T", "*", "F",): a,
-#                     ("F",): a}
-# production["F"] = {("(", "E",")"): a,
-#                     ("int",): a}
-
-#                     Token.register("+", r"+")
-# Token.register("*", r"*")
-# Token.register("(", r"(")
-# Token.register(")", r")")
-# Token.register("int", r"int")
