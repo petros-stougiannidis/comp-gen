@@ -25,24 +25,28 @@ class LL1Parser:
 
     def lookahead(self, tokens):
         try:
-            lookahead = next(tokens).type
-            if lookahead not in self.grammar.terminals:
-                raise RuntimeError(f"Unknown token: {lookahead}")
-            return lookahead
+            token = next(tokens)
+            if token.type not in self.grammar.terminals:
+                raise RuntimeError(f"Unknown token: {token.type}")
+            return token.type, token.value
         except StopIteration:
             return None
 
     def parse(self, tokens, print_stack=False):
+        
         start_item = Item(self.grammar.artificial_start_symbol, [self.grammar.original_start_symbol, "$"]) 
-        stack = [start_item]
-        lookahead = self.lookahead(iter(tokens))
+        stack, value_stack = [start_item], []
+        tokens = iter(tokens)
+        lookahead, value = self.lookahead(tokens)
         
         while True:
+            
             if print_stack:
                 print("...", stack[-3:], "→ lookahead:", lookahead)
+                print("stack:", value_stack)
             match stack:
                 case [final_item] if lookahead == "$" and final_item == start_item.advance():
-                    return True
+                    return True, value_stack
 
                 #expand: apply expansion rule given the next lookahead symbol
                 case [*rest, top] if not top.is_complete() and top.next_symbol() in self.grammar.non_terminals:
@@ -62,13 +66,40 @@ class LL1Parser:
                 #shift: terminal symbol is encountered, shift to the next lookahead symbol
                 case [*rest, top] if not top.is_complete() and top.next_symbol() in self.grammar.terminals and top.next_symbol() == lookahead:
                     stack[-1] = top.advance()
-                    lookahead = self.lookahead(tokens)
+                    value_stack.append(value)
+                    # print("shoift-push:", value)
+                    
+                    lookahead, value = self.lookahead(tokens)
 
                 #reduce: an item was completed, pop the complete item and proceed with the next symbol of the item before
                 case [*rest, second, top] if top.is_complete() and second.next_symbol() == top.lhs:
+
                     #TODO execute callbacks on successful reductions
+                    # print("REDUCE", top)
+                    # if callback := self.grammar.actions[(top.lhs, top.rhs)]:
+                    #     children = []
+                    #     for _ in range(len(top.rhs)):
+                    #         b = value_stack.pop()
+                    #         print("pop:", b)
+                    #         children.append(b)
+                    #     children.reverse()
+                    #     node = callback(children)
+                    #     value_stack.append(node)
+                    #     print("push:", str(node))
+                    print("REDUCE", top)
+                    children = []
+                    for _ in range(len(top.rhs)):
+                        b = value_stack.pop()
+                        print("pop:", b)
+                        children.append(b)
+                    children.reverse()
                     if callback := self.grammar.actions[(top.lhs, top.rhs)]:
-                        callback()
+                        node = callback(children)
+                    else:
+                        node = children
+                    value_stack.append(node)
+                    print("push:", str(node))
+
                     stack.pop()
                     stack[-1] = stack[-1].advance()
                 

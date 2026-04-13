@@ -49,6 +49,9 @@ class Symbol(Regex):
     def __repr__(self):
         return f"{self.label};{self.id}"
 
+    def __str__(self):
+        return self.label
+
 class EmptyWord(Regex):
     def __init__(self):
         super().__init__()
@@ -58,6 +61,9 @@ class EmptyWord(Regex):
 
     def berry_sethi(self, next_states, transitions):
         self.next = next_states
+
+    def __str__(self):
+        return "ε"
 
 class UnaryExpression(Regex):
     def __init__(self, sub):
@@ -85,6 +91,9 @@ class Concatenation(BinaryExpression):
         )
         self.right.berry_sethi(next_states, transitions)
 
+    def __str__(self):
+        return f'{self.left}•{self.right}'
+
 class Union(BinaryExpression):
     def __init__(self, left, right):
         super().__init__(left, right)
@@ -97,6 +106,9 @@ class Union(BinaryExpression):
         self.left.berry_sethi(next_states, transitions)
         self.right.berry_sethi(next_states, transitions)
 
+    def __str__(self):
+        return f'({self.left}|{self.right})'
+
 class KleeneClosure(UnaryExpression):
     def __init__(self, sub):
         super().__init__(sub)
@@ -107,6 +119,9 @@ class KleeneClosure(UnaryExpression):
     def berry_sethi(self, next_states, transitions):
         self.next = next_states
         self.sub.berry_sethi(self.sub.first | next_states, transitions)
+
+    def __str__(self):
+        return f'({self.sub})*'
 
 class Plus(UnaryExpression):
     def __init__(self, sub):
@@ -119,6 +134,9 @@ class Plus(UnaryExpression):
         self.next = next_states
         self.sub.berry_sethi(self.sub.first | next_states, transitions)
 
+    def __str__(self):
+        return f'({self.sub})+'
+
 class Optional(UnaryExpression):
     def __init__(self, sub):
         super().__init__(sub)
@@ -129,4 +147,7 @@ class Optional(UnaryExpression):
     def berry_sethi(self, next_states, transitions):
         self.next = next_states
         self.sub.berry_sethi(next_states, transitions)
+
+    def __str__(self):
+        return f'({self.sub})?'
 
