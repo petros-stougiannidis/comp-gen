@@ -52,7 +52,7 @@ if "-ll1" in command_line_arguments:
 
     parser = LL1Parser(grammar)
 
-    tokens = scanner.scan("a|b")
+    tokens = scanner.scan("(a|b)*cd+")
 
     accepted, stack = parser.parse(tokens, print_stack=("-stack" in command_line_arguments))
     print(stack, stack[0])
@@ -74,11 +74,11 @@ if "-lr1" in command_line_arguments:
     # TODO: implement action callbacks
 
     productions = {}
-    productions["S"] = {("E",): None}
-    productions["E"] = {("E", "+", "E"): None,
-                        ("E", "*", "E"): None,
-                        ("(", "E", ")"): None,
-                        ("int",): None}
+    productions["S"] = {("E",): lambda c : c[0]}
+    productions["E"] = {("E", "+", "E"): lambda c: ("+", c[0], c[2]),
+                        ("E", "*", "E"): lambda c: ("*", c[0], c[2]),
+                        ("(", "E", ")"): lambda c: c[1],
+                        ("int",): lambda c: c[0]}
 
     grammar = Grammar(start_symbol="S", productions=productions, terminals=lr1_tokens.get_names())
     if "-grammar" in command_line_arguments:
@@ -97,4 +97,5 @@ if "-lr1" in command_line_arguments:
 
     tokens = (token for token in scanner.scan("0 + (12 * (34 + 3))") if token.type != "WHITESPACE")
 
-    print(parser.parse(tokens))
+    accepted, stack = parser.parse(tokens)
+    print(stack[0])

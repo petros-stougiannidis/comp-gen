@@ -69,6 +69,17 @@ class LR1State:
     def __iter__(self):
         return self.items()
 
+
+class Shift:
+    def __init__(self, terminal):
+        self.terminal = terminal
+
+class Reduction:
+    def __init__(self, item):
+        self.item = item
+        self.lhs = item.lhs
+        self.rhs = item.rhs
+
 class LR1Parser:
     def __init__(self, grammar):
         self.grammar = grammar
@@ -112,12 +123,12 @@ class LR1Parser:
             for terminal in grammar.terminals:
                 for item in state:     
                     if item.is_complete() and terminal in item.lookahead:
-                        action_table[state][terminal].add(("reduce", item))
+                        action_table[state][terminal].add(Reduction(item))
 
                     if  item.next_symbol() in grammar.terminals \
                         and terminal in concat1(grammar.first1(item.get_right_context()), item.lookahead):
 
-                        action_table[state][terminal].add(("shift", terminal))
+                        action_table[state][terminal].add(Shift(terminal))
 
         return action_table
 
@@ -151,34 +162,32 @@ class LR1Parser:
                 associativity[op] = assoc
 
         for state, terminal, actions in self.LR1_conflicts():
-            shifts = [a for a in actions if a[0] == "shift"]
-            reduces = [a for a in actions if a[0] == "reduce"]
+            shifts = [action for action in actions if isinstance(action, Shift)]
+            reduces = [action for action in actions if isinstance(action, Reduction)]
 
             # only handle shift/reduce conflicts
             if len(shifts) == 1 and len(reduces) == 1:
                 shift = shifts[0]
                 reduce = reduces[0]
 
-                shift_op = terminal
-                reduce_item = reduce[1]
-                reduce_op = self.get_rightmost_terminal(reduce_item)
+                shift_operator = terminal
+                reduce_operator = self.get_rightmost_terminal(reduce.item)
 
-                if shift_op not in precedence or reduce_op not in precedence:
+                if shift_operator not in precedence or reduce_operator not in precedence:
                     continue  # cannot resolve
 
-                if precedence[shift_op] > precedence[reduce_op]:
+                if precedence[shift_operator] > precedence[reduce_operator]:
                     chosen = shift
-                elif precedence[shift_op] < precedence[reduce_op]:
+                elif precedence[shift_operator] < precedence[reduce_operator]:
                     chosen = reduce
                 else:
                     # same precedence → associativity
-                    assoc = associativity[shift_op]
-                    if assoc == "left":
+                    if associativity[shift_operator] == "left":
                         chosen = reduce
-                    elif assoc == "right":
+                    elif associativity[shift_operator] == "right":
                         chosen = shift
                     else:
-                        continue  # nonassoc → leave conflict
+                        continue  # leave conflict
 
                 # patch table
                 self.action_table[state][terminal] = {chosen}
@@ -189,43 +198,6 @@ class LR1Parser:
                 return symbol
         return None
 
-    def parse2(self, tokens):
-        final_reduction = LR1Item(self.grammar.artificial_start_symbol, self.grammar.original_start_symbol, dot=1, lookahead={'$'})
-        tokens = list(tokens)
-        
-        i = 0
-        stack = [self.start_state]
-        while True:
-            current_state = stack[-1]
-
-            token = tokens[i].type
-
-            actions = self.action_table[current_state][token]
-            if not actions:
-                raise SyntaxError(f"Unexpected token {token} in state {id(current_state)}")
-
-            action = next(iter(actions)) 
-            
-
-            if action[0] == "shift":
-                stack.append(self.goto[current_state][token])
-                i += 1 
-                continue
-
-            elif action[0] == "reduce":# and any([item.is_complete() for item in current_state]):
-                
-                item = action[1]
-                
-                if item == final_reduction:
-                    return True
-                
-                for _ in range(len(item.rhs)):
-                    stack.pop()
-                stack.append(self.goto[stack[-1]][item.lhs])
-                continue
-
-        return False
-
     def get_action(self, current_state, token):
         actions = self.action_table[current_state][token]
         if not actions:
@@ -234,30 +206,37 @@ class LR1Parser:
 
     def parse(self, tokens):
         final_reduction = LR1Item(self.grammar.artificial_start_symbol, self.grammar.original_start_symbol, dot=1, lookahead={'$'})
-        stack = [self.start_state]
+        parsing_stack, semantic_stack = [self.start_state], []
 
         for token in tokens:
-            current_state = stack[-1]
-            token = token.type
+            
+            current_state = parsing_stack[-1]
+            token, value = token.type, token.value
             
             action = self.get_action(current_state, token)
-            while action[0] == "reduce":
-                item = action[1]
-                if item == final_reduction:
-                    return True
+            while isinstance(action, Reduction):
+                reduction = action
+                if reduction.item == final_reduction:
+                    return True, semantic_stack
 
-                if callback := self.grammar.actions[(item.lhs, item.rhs)]:
-                    callback()
+                children = []
                 
-                for _ in range(len(item.rhs)):
-                    stack.pop()
-                stack.append(self.goto[stack[-1]][item.lhs])
-                current_state = stack[-1]
+                for _ in range(len(reduction.item.rhs)):
+                    parsing_stack.pop()
+                    children.append(semantic_stack.pop())
+                
+                children.reverse()
+                if callback := self.grammar.actions[(reduction.item.lhs, reduction.item.rhs)]:
+                    semantic_stack.append(callback(children))
+
+                parsing_stack.append(self.goto[parsing_stack[-1]][reduction.item.lhs])
+                current_state = parsing_stack[-1]
                 action = self.get_action(current_state, token)
             
-            if action[0] == "shift":
-                stack.append(self.goto[current_state][token])
-                current_state = stack[-1]
+            if isinstance(action, Shift):
+                parsing_stack.append(self.goto[current_state][token])
+                semantic_stack.append(value)
+                current_state = parsing_stack[-1]
                 continue                
             
         return False
