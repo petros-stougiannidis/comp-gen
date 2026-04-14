@@ -14,7 +14,7 @@ if "-ll1" in command_line_arguments:
     ll1_tokens.register("(", r"\(")
     ll1_tokens.register(")", r"\)")
     ll1_tokens.register("|", r"\|")
-    ll1_tokens.register("symbol", r"a|b|c")
+    ll1_tokens.register("symbol", r"[a-zA-Z]")
 
     scanner = Scanner(ll1_tokens)
     if "-pdf" in command_line_arguments:
@@ -27,7 +27,7 @@ if "-ll1" in command_line_arguments:
     def constructUnary(constructor):
         return lambda child: (lambda node: constructor(node))
     def apply():
-        return lambda child: child[1](child[0]) if child[1] else child[0]
+        return lambda child: child[1](child[0])
 
     productions = dict()
     productions["regex"] = {("concat", "A1"): apply()}
@@ -52,9 +52,9 @@ if "-ll1" in command_line_arguments:
 
     parser = LL1Parser(grammar)
 
-    tokens = (token for token in scanner.scan("a|b"))
+    tokens = scanner.scan("a|b")
 
-    acceptec, stack = parser.parse(tokens, print_stack=("-stack" in command_line_arguments))
+    accepted, stack = parser.parse(tokens, print_stack=("-stack" in command_line_arguments))
     print(stack, stack[0])
 
 if "-lr1" in command_line_arguments:

@@ -35,18 +35,18 @@ class LL1Parser:
     def parse(self, tokens, print_stack=False):
         
         start_item = Item(self.grammar.artificial_start_symbol, [self.grammar.original_start_symbol, "$"]) 
-        stack, value_stack = [start_item], []
+        parsing_stack, semantic_stack = [start_item], []
         tokens = iter(tokens)
         lookahead, value = self.lookahead(tokens)
         
         while True:
             
             if print_stack:
-                print("...", stack[-3:], "→ lookahead:", lookahead)
-                print("stack:", value_stack)
-            match stack:
+                print("...", parsing_stack[-3:], "→ lookahead:", lookahead)
+                print("semantic stack:", semantic_stack)
+            match parsing_stack:
                 case [final_item] if lookahead == "$" and final_item == start_item.advance():
-                    return True, value_stack
+                    return True, semantic_stack
 
                 #expand: apply expansion rule given the next lookahead symbol
                 case [*rest, top] if not top.is_complete() and top.next_symbol() in self.grammar.non_terminals:
@@ -55,7 +55,7 @@ class LL1Parser:
                     match expansions:
                         # single deterministic choice
                         case [expansion]:
-                            stack.append(Item(non_terminal, expansion))
+                            parsing_stack.append(Item(non_terminal, expansion))
                         # parse error: no rule to apply, the word is rejected
                         case []:
                             raise SyntaxError(f"Parsing error: Cannot expand {top} for lookahead: {lookahead}")
@@ -65,9 +65,8 @@ class LL1Parser:
                     
                 #shift: terminal symbol is encountered, shift to the next lookahead symbol
                 case [*rest, top] if not top.is_complete() and top.next_symbol() in self.grammar.terminals and top.next_symbol() == lookahead:
-                    stack[-1] = top.advance()
-                    value_stack.append(value)
-                    # print("shoift-push:", value)
+                    parsing_stack[-1] = top.advance()
+                    semantic_stack.append(value)
                     
                     lookahead, value = self.lookahead(tokens)
 
@@ -75,33 +74,19 @@ class LL1Parser:
                 case [*rest, second, top] if top.is_complete() and second.next_symbol() == top.lhs:
 
                     #TODO execute callbacks on successful reductions
-                    # print("REDUCE", top)
-                    # if callback := self.grammar.actions[(top.lhs, top.rhs)]:
-                    #     children = []
-                    #     for _ in range(len(top.rhs)):
-                    #         b = value_stack.pop()
-                    #         print("pop:", b)
-                    #         children.append(b)
-                    #     children.reverse()
-                    #     node = callback(children)
-                    #     value_stack.append(node)
-                    #     print("push:", str(node))
-                    print("REDUCE", top)
                     children = []
                     for _ in range(len(top.rhs)):
-                        b = value_stack.pop()
-                        print("pop:", b)
-                        children.append(b)
+                        children.append(semantic_stack.pop())
+
                     children.reverse()
                     if callback := self.grammar.actions[(top.lhs, top.rhs)]:
                         node = callback(children)
                     else:
                         node = children
-                    value_stack.append(node)
-                    print("push:", str(node))
-
-                    stack.pop()
-                    stack[-1] = stack[-1].advance()
+                    semantic_stack.append(node)
+                    
+                    parsing_stack.pop()
+                    parsing_stack[-1] = parsing_stack[-1].advance()
                 
                 case _:
                     raise SyntaxError(f"Parsing error: {top} could neither be expanded, shifted nor reduced for lookahead: {lookahead}")
