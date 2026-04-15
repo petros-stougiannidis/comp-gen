@@ -65,7 +65,7 @@ if "-lr1" in command_line_arguments:
     lr1_tokens.register("+", r"\+")
     lr1_tokens.register("(", r"\(")
     lr1_tokens.register(")", r"\)")
-    lr1_tokens.register("int", r"\d*")
+    lr1_tokens.register("int", r"[0-9]+")
 
     scanner = Scanner(lr1_tokens)
     if "-pdf" in command_line_arguments:
@@ -92,6 +92,9 @@ if "-lr1" in command_line_arguments:
     ]
     parser.patch(precedences)
     parser.print_LR1_conflicts()
+
+    # for token in scanner.scan("0 + (12 * (34 + 3))"):
+    #     print(token)
 
     tokens = (token for token in scanner.scan("0 + (12 * (34 + 3))") if token.type != "WHITESPACE")
 
@@ -181,11 +184,33 @@ if "-conf" in command_line_arguments:
     parser = LR1Parser(grammar)
     parser.print_LR1_conflicts()
 
-    tokens = (token for token in scanner.scan_file("test.txt"))
-    for t in tokens:
-        print(t)
+    # tokens = (token for token in scanner.scan_file("test.txt"))
+    # for t in tokens:
+    #     print(t)
 
     tokens = (token for token in scanner.scan_file("test.txt") if token.type != "SPACE")
     accepted, stack = parser.parse(tokens)
     print(accepted, stack)
+
+if "-test" in command_line_arguments:
+    test_tokens = TokenRegistry()
+    test_tokens.register("ID", r"[a-zA-Z][a-zA-Z0-9]*")
+    test_tokens.register("SPACE", r"\s")
+    test_tokens.register("LETTERS", r"[a-zA-Z]+")
+    test_tokens.register("NUMBER", r"[0-9]+")
+    test_tokens.register("INTEGER", r"[1-9][0-9]*")
+
+    scanner = Scanner(test_tokens)
+    if "-pdf" in command_line_arguments:
+        scanner.nfa.generatePDF()
+
+    for token in scanner.scan("a 0 b 1 1234 01234 asdf asdf1234 1234asdf"):
+        # if token.type != "SPACE":
+            # print(token)
+        print(token)
+
+if "-dev" in command_line_arguments:
+    import todo.handwritten_regex_parser as file
+
+
 

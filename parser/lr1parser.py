@@ -103,7 +103,7 @@ class LR1Parser:
                 print(f"\t• {action}")
             print()
 
-    # TODO: implement
+    # TODO: implement myself
     def patch(self, precedences):
         precedence = {}
         associativity = {}

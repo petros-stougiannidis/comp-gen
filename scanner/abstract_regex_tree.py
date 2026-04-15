@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-
+from formatting.print import print_set
 from scanner.nfa import NFA
 
 class Regex(ABC):
@@ -47,10 +47,10 @@ class Symbol(Regex):
             transitions[self][leaf.label].add(leaf)
 
     def __repr__(self):
-        return f"{self.label};{self.id}"
+        return f"Symbol:{print_set(self.label)};{self.id}"
 
     def __str__(self):
-        return self.label
+        return str(print_set(self.label))
 
 class EmptyWord(Regex):
     def __init__(self):
@@ -107,7 +107,7 @@ class Union(BinaryExpression):
         self.right.berry_sethi(next_states, transitions)
 
     def __str__(self):
-        return f'({self.left}|{self.right})'
+        return f'{self.left}|{self.right}'
 
 class KleeneClosure(UnaryExpression):
     def __init__(self, sub):

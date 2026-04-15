@@ -1,0 +1,4 @@
+petros = 1
+gizem = 2
+christina = 3
+mama = 4

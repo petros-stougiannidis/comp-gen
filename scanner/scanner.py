@@ -1,12 +1,17 @@
 from functools import reduce
 from scanner.abstract_regex_tree import Regex, Union
-from specification.token import Token
+from specification.token import Token, TokenRegistry
 
 class Scanner:
-    def __init__(self, token_register):
-        self.tokens = token_register.get_tokens()
-        # TODO: investigate: non-disjoint token overlaps
+    def __init__(self, tokens):
+        if isinstance(tokens, TokenRegistry):
+            self.tokens = tokens.get_tokens()
+        elif isinstance(tokens, dict):
+            self.tokens = tokens.items()
+        # elif isinstance(tokens, TokenRegistry):
 
+        # TODO: investigate: non-disjoint token overlaps
+        
         # build master regex
         self.regex = reduce(Union, [ast for _, ast in self.tokens])
         self.nfa = self.regex.to_nfa()
