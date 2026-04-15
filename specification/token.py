@@ -7,20 +7,14 @@ class TokenRegistry:
 
     def register(self, name, pattern):
         ast = self.regex_parser.parse(pattern)
-        if ast:
-            self.tokens[name] = ast
-            return ast
-        else:
-            raise SyntaxError(f"Failed to parse {pattern}")
-    
+        self.tokens[name] = ast
+        return ast
+
     def get_tokens(self):
         return self.tokens.items()  
 
     def get_names(self):
-        return self.tokens.keys()  
-
-    def get_ASTs(self):
-        return self.tokens.values()  
+        return self.tokens.keys()
 
 class Token:
     

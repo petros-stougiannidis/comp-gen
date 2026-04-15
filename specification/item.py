@@ -1,4 +1,4 @@
-from formatting.print import Sequence
+from formatting.print import Sequence, pretty_set
 
 class Item:
     def __init__(self, lhs, rhs, dot=0):
@@ -47,7 +47,9 @@ class LR1Item(Item):
         self.lookahead = set(lookahead or [])
 
     def advance(self):
-        return LR1Item(self.lhs, self.rhs, self.dot + 1, self.lookahead)
+        if not self.is_complete():
+            return LR1Item(self.lhs, self.rhs, self.dot + 1, self.lookahead)
+        raise RuntimeError(f"{self} is already complete")
 
     def __hash__(self):
         return hash((self.lhs, self.rhs, self.dot, frozenset(self.lookahead)))
@@ -59,16 +61,5 @@ class LR1Item(Item):
             (other.lhs, other.rhs, other.dot, other.lookahead)
 
     def __repr__(self):
-        before = Sequence(self.rhs[:self.dot])
-        after = Sequence(self.rhs[self.dot:])
-
-        parts = []
-        if before:
-            parts.append(str(before))
-        parts.append("•")
-        if after:
-            parts.append(str(after))
-
-        lookahead = "{" + ", ".join(sorted(self.lookahead)) + "}"
-
-        return f"[{self.lhs} → {' '.join(parts)}, {lookahead}]"
+        base = super().__repr__()
+        return f"{base[:-1]}, {pretty_set(self.lookahead)}]"
