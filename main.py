@@ -99,3 +99,119 @@ if "-lr1" in command_line_arguments:
 
     accepted, stack = parser.parse(tokens)
     print(stack[0])
+
+
+if "-reg" in command_line_arguments:
+    # LR1
+    reg_tokens = TokenRegistry()
+    reg_tokens.register(".", r".")
+    reg_tokens.register("*", r"\*")
+    reg_tokens.register("?", r"\?")
+    reg_tokens.register("+", r"\+")
+    reg_tokens.register("(", r"\(")
+    reg_tokens.register(")", r"\)")
+    reg_tokens.register("|", r"\|")
+    reg_tokens.register("symbol", r"[a-zA-Z]")
+
+    scanner = Scanner(reg_tokens)
+    if "-pdf" in command_line_arguments:
+        scanner.nfa.generatePDF()
+
+    # TODO: implement action callbacks
+
+    productions = {}
+    productions["regex"] = {("regex", ".", "regex"): lambda c: Concatenation(c[0], c[2]),
+                        ("regex", "|", "regex"): lambda c: Union(c[0], c[2]),
+                        ("regex", "*"): lambda c: KleeneClosure(c[0]),
+                        ("regex", "+"): lambda c: Plus(c[0]),
+                        ("regex", "?"): lambda c: Optional(c[0]),
+                        ("(", "regex", ")"): lambda c: c[1],
+                        ("symbol",): lambda c: Symbol(c[0])}
+
+    grammar = Grammar(start_symbol="regex", productions=productions, terminals=reg_tokens.get_names())
+    if "-grammar" in command_line_arguments:
+        print(grammar)
+        if not grammar.is_LL1():
+            grammar.print_LL1_conflicts() 
+
+    parser = LR1Parser(grammar)
+
+    precedences = [
+        ("left", ["|"]),          # lowest
+        ("left", ["."]),          # concatenation
+        ("right", ["*", "+", "?"])  # highest (postfix)
+    ]
+    parser.patch(precedences)
+    parser.print_LR1_conflicts()
+
+    tokens = scanner.scan("a.b.c|s.f")
+
+    accepted, stack = parser.parse(tokens)
+    print(accepted, stack[0] if stack else None)
+
+
+if "-conf" in command_line_arguments:
+    # LR1
+    conf_tokens = TokenRegistry()
+    conf_tokens.register("NEW_LINE", r"\n")
+    conf_tokens.register("SPACE", r"\s")
+    conf_tokens.register("KEY", r"[a-zA-Z]+")
+    conf_tokens.register("EQ", r"=")
+    conf_tokens.register("VAL", r"[0-9]")
+
+    scanner = Scanner(conf_tokens)
+    if "-pdf" in command_line_arguments:
+        scanner.nfa.generatePDF()
+
+    # TODO: implement action callbacks
+
+    # productions = {}
+    # productions["file"] = {
+    #     ("line", "tail"): None,
+    #     tuple(): None
+    # }
+    # productions["tail"] = {
+    #     ("line",): None,
+    #     tuple(): None
+    # }
+    # productions["line"] = {
+    #     ("KEY", "EQ", "VAL", "NEW_LINE"): None,
+    #     ("KEY", "EQ", "VAL"): None
+    # }
+    productions = {}
+    productions["file"] = {
+        ("line", "tail"): None,
+        tuple(): None
+    }
+    productions["tail"] = {
+        ("line", "tail"): None,
+        tuple(): None
+    }
+    productions["line"] = {
+        ("spec", "NEW_LINE"): None,
+        ("spec",): None,
+    }
+    productions["spec"] = {
+        ("KEY", "EQ", "VAL"): None
+    }
+
+    grammar = Grammar(start_symbol="file", productions=productions, terminals=conf_tokens.get_names())
+
+    parser = LR1Parser(grammar)
+
+    # precedences = [
+    #     ("left", ["|"]),          # lowest
+    #     ("left", ["."]),          # concatenation
+    #     ("right", ["*", "+", "?"])  # highest (postfix)
+    # ]
+    # parser.patch(precedences)
+    parser.print_LR1_conflicts()
+
+    tokens = (token for token in scanner.scan_file("test.txt"))
+    for t in tokens:
+        print(t)
+
+    tokens = (token for token in scanner.scan_file("test.txt") if token.type != "SPACE")
+    accepted, stack = parser.parse(tokens)
+    print(accepted, stack)
+

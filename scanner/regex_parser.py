@@ -34,14 +34,21 @@ def regex_tokenize(pattern):
             continue
 
         if c == "\\":
-            if i + 1 >= len(pattern):
-                raise RuntimeError("Dangling escape at end of regex")
             esc = pattern[i + 1]
-            cls = _class_for_escape(esc)
-            if cls is not None:
-                tokens.append(("CLASS", cls))
+
+            if esc == "n":
+                tokens.append(("LITERAL", "\n"))
+            elif esc == "t":
+                tokens.append(("LITERAL", "\t"))
+            elif esc == "r":
+                tokens.append(("LITERAL", "\r"))
             else:
-                tokens.append(("LITERAL", esc))
+                cls = _class_for_escape(esc)
+                if cls is not None:
+                    tokens.append(("CLASS", cls))
+                else:
+                    tokens.append(("LITERAL", esc))
+
             i += 2
             continue
 
@@ -171,7 +178,7 @@ def parse_regex(pattern):
         if isinstance(tok, tuple):
             kind, value = tok
             if kind == "LITERAL":
-                return Symbol(value)
+                return Symbol(frozenset(value))
             if kind == "CLASS":
                 # symbols = [Symbol(ch) for ch in sorted(value)]
                 if not value:
@@ -182,7 +189,7 @@ def parse_regex(pattern):
                 return Symbol(frozenset(value))
 
         if isinstance(tok, str):
-            return Symbol(tok)
+            return Symbol(frozenset(tok))
 
         raise RuntimeError(f"Unsupported token: {tok}")
 

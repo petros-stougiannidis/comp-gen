@@ -5,6 +5,7 @@ from specification.token import Token
 class Scanner:
     def __init__(self, token_register):
         self.tokens = token_register.get_tokens()
+        # TODO: investigate: non-disjoint token overlaps
 
         # build master regex
         self.regex = reduce(Union, [ast for _, ast in self.tokens])

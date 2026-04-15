@@ -49,7 +49,8 @@ def epsilon_closure(items, grammar):
     return closure
 
 class LR1State:
-    def __init__(self, core, grammar):
+    def __init__(self, core, grammar, state_id=None):
+        self.id = state_id
         self.core = core
         self.closure = epsilon_closure(core, grammar)
         self.identity = frozenset({(item.lhs, item.rhs, item.dot, frozenset(item.lookahead)) for item in self.closure})
@@ -74,11 +75,27 @@ class Shift:
     def __init__(self, terminal):
         self.terminal = terminal
 
+    def __eq__(self, other):
+        return isinstance(other, Shift) and self.terminal == other.terminal
+
+    def __hash__(self):
+        return hash(("SHIFT", self.terminal))
+
+    def __str__(self):
+        return f'Shift: {self.terminal}'
+
 class Reduction:
     def __init__(self, item):
         self.item = item
-        self.lhs = item.lhs
-        self.rhs = item.rhs
+
+    def __eq__(self, other):
+        return isinstance(other, Reduction) and self.item == other.item
+
+    def __hash__(self):
+        return hash(("REDUCTION", self.item))
+
+    def __str__(self):
+        return f'Reduce: {self.item}'
 
 class LR1Parser:
     def __init__(self, grammar):
@@ -92,7 +109,8 @@ class LR1Parser:
         transition = defaultdict(lambda: defaultdict(lambda: None))
         start_items = [LR1Item(grammar.start_symbol, rhs, lookahead={'$'}) for rhs in grammar.delta[grammar.start_symbol]]
 
-        self.start_state = LR1State(start_items, grammar)
+        self.start_state = LR1State(start_items, grammar, state_id=0)
+        state_id = 1
         worklist = [self.start_state]
 
         while worklist:
@@ -107,28 +125,27 @@ class LR1Parser:
                 new_state_core[symbol].append(item.advance())
 
             for symbol, core in new_state_core.items():
-                new_state = LR1State(core, grammar)
+                new_state = LR1State(core, grammar, state_id)
+                state_id += 1
                 transition[state][symbol] = new_state
                 if new_state not in states:
                     worklist.append(new_state)
 
         return states, transition
 
-    # TODO: change action specification
     def action_table(self):
         grammar = self.grammar
         action_table = defaultdict(lambda: defaultdict(set))
 
         for state in self.states:
-            for terminal in grammar.terminals:
-                for item in state:     
-                    if item.is_complete() and terminal in item.lookahead:
+            for item in state:
+                if item.is_complete():
+                    for terminal in item.lookahead:
                         action_table[state][terminal].add(Reduction(item))
 
-                    if  item.next_symbol() in grammar.terminals \
-                        and terminal in concat1(grammar.first1(item.get_right_context()), item.lookahead):
-
-                        action_table[state][terminal].add(Shift(terminal))
+                symbol = item.next_symbol()
+                if symbol in self.grammar.terminals:
+                    action_table[state][symbol].add(Shift(symbol))
 
         return action_table
 
@@ -145,8 +162,10 @@ class LR1Parser:
 
     def print_LR1_conflicts(self):
         conflicts = self.LR1_conflicts()
+        if conflicts:
+            print("Total number of conflics:", len(self.LR1_conflicts()))
         for state, terminal, actions in conflicts:
-            print(f"Conflict in state {id(state)} on '{terminal}':")
+            print(f"Conflict in state {state.id} on terminal '{terminal}':")
             for action in actions:
                 print(f"  {action}")
             print()
@@ -201,11 +220,11 @@ class LR1Parser:
     def get_action(self, current_state, token):
         actions = self.action_table[current_state][token]
         if not actions:
-            raise SyntaxError(f"Unexpected token {token} in state {id(current_state)}")
+            raise SyntaxError(f"Unexpected token: {token} in state {current_state.id}")
         return next(iter(actions)) 
 
     def parse(self, tokens):
-        final_reduction = LR1Item(self.grammar.artificial_start_symbol, self.grammar.original_start_symbol, dot=1, lookahead={'$'})
+        final_reduction = LR1Item(self.grammar.artificial_start_symbol, (self.grammar.original_start_symbol,), dot=1, lookahead={'$'})
         parsing_stack, semantic_stack = [self.start_state], []
 
         for token in tokens:
@@ -216,6 +235,7 @@ class LR1Parser:
             action = self.get_action(current_state, token)
             while isinstance(action, Reduction):
                 reduction = action
+                print(reduction)
                 if reduction.item == final_reduction:
                     return True, semantic_stack
 
@@ -228,15 +248,18 @@ class LR1Parser:
                 children.reverse()
                 if callback := self.grammar.actions[(reduction.item.lhs, reduction.item.rhs)]:
                     semantic_stack.append(callback(children))
+                else:
+                    semantic_stack.append(children)
 
                 parsing_stack.append(self.goto[parsing_stack[-1]][reduction.item.lhs])
                 current_state = parsing_stack[-1]
                 action = self.get_action(current_state, token)
             
             if isinstance(action, Shift):
+                print(action)
                 parsing_stack.append(self.goto[current_state][token])
                 semantic_stack.append(value)
                 current_state = parsing_stack[-1]
                 continue                
             
-        return False
+        return False, semantic_stack
