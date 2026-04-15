@@ -16,6 +16,9 @@ if "-ll1" in command_line_arguments:
     ll1_tokens.register("|", r"\|")
     ll1_tokens.register("symbol", r"[a-zA-Z]")
 
+    # for ast in ll1_tokens.values():
+    #     print(ast)
+
     scanner = Scanner(ll1_tokens)
     if "-pdf" in command_line_arguments:
         scanner.nfa.generatePDF()
@@ -52,7 +55,7 @@ if "-ll1" in command_line_arguments:
 
     parser = LL1Parser(grammar)
 
-    tokens = scanner.scan("(a|b)*cd+")
+    tokens = scanner.scan(r"(a|b)*cd+")
 
     accepted, stack = parser.parse(tokens, print_stack=("-stack" in command_line_arguments))
     print(stack, stack[0])
@@ -204,13 +207,16 @@ if "-test" in command_line_arguments:
     if "-pdf" in command_line_arguments:
         scanner.nfa.generatePDF()
 
-    for token in scanner.scan("a 0 b 1 1234 01234 asdf asdf1234 1234asdf"):
+    for token in scanner.scan("1234 01234 asdf asdf1234 1234asdf"):
         # if token.type != "SPACE":
             # print(token)
         print(token)
 
 if "-dev" in command_line_arguments:
-    import todo.handwritten_regex_parser as file
+    test_tokens = TokenRegistry()
+    print(test_tokens.register("a", r"ab\*\s([^a-xA-Z0-9]|\d)"))
+    
+
 
 
 

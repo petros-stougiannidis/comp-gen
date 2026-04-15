@@ -2,13 +2,14 @@ class TokenRegistry:
     
     def __init__(self):
         self.tokens = {}
-        from todo.handwritten_regex_parser import LL1RegexParser
-        self.regex_parser = LL1RegexParser()
+        from scanner.regex_parser import LR1RegexParser
+        self.regex_parser = LR1RegexParser()
 
     def register(self, name, pattern):
         ast = self.regex_parser.parse(pattern)
         if ast:
             self.tokens[name] = ast
+            return ast
         else:
             raise SyntaxError(f"Failed to parse {pattern}")
     

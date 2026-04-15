@@ -1,199 +1,89 @@
 import string
-from scanner.abstract_regex_tree import Symbol, Union, KleeneClosure, Plus, Concatenation
+from scanner.abstract_regex_tree import Symbol, Concatenation, Union, KleeneClosure, Plus, Optional
+from scanner.scanner import Scanner
+from specification.grammar import Grammar
+from parser.ll1parser import LL1Parser
+from parser.lr1parser import LR1Parser
+from functools import reduce
 
-PRINTABLE = set(string.printable)
-DIGITS = set("0123456789")
-WHITESPACE = set(" \t\n\r\v\f")
-WORD = set(string.ascii_letters + string.digits + "_")
+regex_meta_characters = set("|*+?()[]-\\^")
+escaped_character_classes = {
+    r'\d': set(string.digits),
+    r'\D': set(string.printable) - set(string.digits),
+    r'\w': set(string.ascii_letters + string.digits + '_'),
+    r'\W': set(string.printable) - set(string.ascii_letters + string.digits + '_'),
+    r'\s': set(string.whitespace),
+    r'\S': set(string.printable) - set(string.whitespace),
+    r'\n': {'\n'},
+    r'\t': {'\t'},
+    r'\r': {'\r'},
+    r'\0': {'\0'},
+    r'\f': {'\f'},
+    r'\v': {'\v'},
+}
 
-def _class_for_escape(ch):
-    if ch == "d":
-        return set(DIGITS)
-    if ch == "D":
-        return PRINTABLE - DIGITS
-    if ch == "s":
-        return set(WHITESPACE)
-    if ch == "S":
-        return PRINTABLE - WHITESPACE
-    if ch == "w":
-        return set(WORD)
-    if ch == "W":
-        return PRINTABLE - WORD
-    return None
+def escaped_class(escape_sequence):
+    if escape_sequence in escaped_character_classes:
+        return escaped_character_classes[escape_sequence]
+    escaped_character = escape_sequence[1:]
+    if escaped_character in regex_meta_characters:
+        return {escaped_character}
+    raise SyntaxError(f"Unknown escape sequence: {character}")
 
-def regex_tokenize(pattern):
-    tokens = []
-    i = 0
+def character_range(start, end):
+    start, end = min(ord(start), ord(end)), max(ord(start), ord(end))
+    return {chr(character) for character in range(start, end + 1)}
 
-    while i < len(pattern):
-        c = pattern[i]
+class LR1RegexParser:
 
-        if c in "()|*+?":
-            tokens.append(c)
-            i += 1
-            continue
-
-        if c == "\\":
-            esc = pattern[i + 1]
-
-            if esc == "n":
-                tokens.append(("LITERAL", "\n"))
-            elif esc == "t":
-                tokens.append(("LITERAL", "\t"))
-            elif esc == "r":
-                tokens.append(("LITERAL", "\r"))
-            else:
-                cls = _class_for_escape(esc)
-                if cls is not None:
-                    tokens.append(("CLASS", cls))
-                else:
-                    tokens.append(("LITERAL", esc))
-
-            i += 2
-            continue
-
-        if c == "[":
-            i += 1
-            if i >= len(pattern):
-                raise RuntimeError("Unterminated character class")
-
-            negated = False
-            if pattern[i] == "^":
-                negated = True
-                i += 1
-
-            chars = set()
-            while i < len(pattern) and pattern[i] != "]":
-                if pattern[i] == "\\":
-                    if i + 1 >= len(pattern):
-                        raise RuntimeError("Dangling escape inside character class")
-                    esc = pattern[i + 1]
-                    cls = _class_for_escape(esc)
-                    if cls is not None:
-                        chars |= cls
-                    else:
-                        chars.add(esc)
-                    i += 2
-                    continue
-
-                if i + 2 < len(pattern) and pattern[i + 1] == "-" and pattern[i + 2] != "]":
-                    start = pattern[i]
-                    end = pattern[i + 2]
-                    if ord(start) > ord(end):
-                        raise RuntimeError(f"Invalid range {start}-{end}")
-                    for code in range(ord(start), ord(end) + 1):
-                        chars.add(chr(code))
-                    i += 3
-                    continue
-
-                chars.add(pattern[i])
-                i += 1
-
-            if i >= len(pattern) or pattern[i] != "]":
-                raise RuntimeError("Unterminated character class")
-
-            i += 1
-            if negated:
-                chars = PRINTABLE - chars
-            tokens.append(("CLASS", chars))
-            continue
-
-        tokens.append(("LITERAL", c))
-        i += 1
-
-    return tokens
-
-
-def parse_regex(pattern):
-    tokens = regex_tokenize(pattern)
-    pos = 0
-
-    def peek():
-        return tokens[pos] if pos < len(tokens) else None
-
-    def consume(expected=None):
-        nonlocal pos
-        tok = peek()
-        if tok is None:
-            raise RuntimeError("Unexpected end of regex")
-        if expected is not None and tok != expected:
-            raise RuntimeError(f"Expected {expected}, got {tok}")
-        pos += 1
-        return tok
-
-    def make_union(nodes):
-        if not nodes:
-            return EmptyWord()
-        node = nodes[0]
-        for nxt in nodes[1:]:
-            node = Union(node, nxt)
-        return node
-
-    def parse_expr():
-        node = parse_concat()
-        while peek() == "|":
-            consume("|")
-            rhs = parse_concat()
-            node = Union(node, rhs)
-        return node
-
-    def parse_concat():
-        nodes = []
-        while peek() is not None and peek() not in (")", "|"):
-            nodes.append(parse_repeat())
-
-        if not nodes:
-            return EmptyWord()
-
-        node = nodes[0]
-        for nxt in nodes[1:]:
-            node = Concatenation(node, nxt)
-        return node
-
-    def parse_repeat():
-        node = parse_atom()
-        while peek() in ("*", "+", "?"):
-            op = consume()
-            if op == "*":
-                node = KleeneClosure(node)
-            elif op == "+":
-                node = Plus(node)
-            elif op == "?":
-                node = Optional(node)
-        return node
-
-    def parse_atom():
-        tok = peek()
-        if tok is None:
-            raise RuntimeError("Unexpected end of regex")
-
-        if tok == "(":
-            consume("(")
-            node = parse_expr()
-            consume(")")
-            return node
-        tok = consume()
-
+    def __init__(self):
+    
+        regex_tokens = {}
+        regex_tokens[f'escaped'] = Concatenation(Symbol('\\'), Symbol(string.printable))
+        for character in regex_meta_characters:
+            regex_tokens[character] = Symbol(character)
         
-        if isinstance(tok, tuple):
-            kind, value = tok
-            if kind == "LITERAL":
-                return Symbol(frozenset(value))
-            if kind == "CLASS":
-                # symbols = [Symbol(ch) for ch in sorted(value)]
-                if not value:
-                    raise RuntimeError("Empty character class")
-                # node = symbols[0]
-                # for nxt in symbols[1:]:
-                    # node = Union(node, nxt)
-                return Symbol(frozenset(value))
+        regex_tokens["symbol"] = Symbol(set(string.printable))
 
-        if isinstance(tok, str):
-            return Symbol(frozenset(tok))
+        self.scanner = Scanner(regex_tokens)
 
-        raise RuntimeError(f"Unsupported token: {tok}")
+        productions = {}
+        productions["regex"] = {
+            ("regex", "|", "term"): lambda c: Union(c[0], c[2]),
+            ("term",):              lambda c: c[0],
+        }
+        productions["term"] = {
+            ("term", "factor"):  lambda c: Concatenation(c[0], c[1]),
+            ("factor",):         lambda c: c[0],
+        }
+        productions["factor"] = {
+            ("atom", "*"): lambda c: KleeneClosure(c[0]),
+            ("atom", "+"): lambda c: Plus(c[0]),
+            ("atom", "?"): lambda c: Optional(c[0]),
+            ("atom",):     lambda c: c[0],
+        }
+        productions["atom"] = {
+            ("symbol",):            lambda c: Symbol(c[0]),
+            ("escaped",):            lambda c: Symbol(escaped_class(c[0])),
+            ("(", "regex", ")"):    lambda c: c[1],
+            ("[", "classes", "]"):  lambda c: Symbol(c[1]),
+            ("[", "^", "classes", "]"): lambda c: Symbol(set(string.ascii_letters) - c[2]),
+        }
+        productions["classes"] = {
+            ("class", "classes"): lambda c: c[0] | c[1],
+            tuple(): lambda c: set(),
+        }
+        productions["class"] = {
+            ("symbol",): lambda c: set(c[0]),
+            ("symbol", "-", "symbol"): lambda c: character_range(c[0], c[2]),
+            ("escaped",): lambda c: escaped_class(c[0]),
+        }
 
-    node = parse_expr()
-    if pos != len(tokens):
-        raise RuntimeError("Unexpected tokens at end of regex")
-    return node
+        grammar = Grammar(start_symbol="regex", productions=productions, terminals=regex_tokens.keys())
+        self.parser = LR1Parser(grammar)
+        self.parser.print_LR1_conflicts()
+
+    def parse(self, regex_string):
+
+        accepted, stack = self.parser.parse(self.scanner.scan(regex_string))
+        return stack[0] if accepted else None

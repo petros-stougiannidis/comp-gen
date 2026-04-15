@@ -161,11 +161,12 @@ class LR1Parser:
         parsing_stack, semantic_stack = [self.start_state], []
 
         for token in tokens:
-            
+
             current_state = parsing_stack[-1]
             token, value = token.type, token.value
             
             action = self.get_action(current_state, token)
+            
             while isinstance(action, Reduction):
                 reduction = action
                 if reduction.item == final_reduction:
@@ -178,11 +179,12 @@ class LR1Parser:
                     children.append(semantic_stack.pop())
                 
                 children.reverse()
+                
                 if callback := self.grammar.actions[(reduction.item.lhs, reduction.item.rhs)]:
                     semantic_stack.append(callback(children))
                 else:
                     semantic_stack.append(children)
-
+                
                 parsing_stack.append(self.goto[parsing_stack[-1]][reduction.item.lhs])
                 current_state = parsing_stack[-1]
                 action = self.get_action(current_state, token)

@@ -1,126 +1,90 @@
 import string
 from scanner.abstract_regex_tree import Symbol, Concatenation, Union, KleeneClosure, Plus, Optional
 from scanner.scanner import Scanner
-from specification.token import TokenRegistry
 from specification.grammar import Grammar
 from parser.ll1parser import LL1Parser
+from parser.lr1parser import LR1Parser
 from functools import reduce
 
-regex_meta_characters = "|*+?()[]-\\"
-META = set("|*+?()[]-\\")
-WHITESPACE = set(" \t\n\r\f\v")
+regex_meta_characters = set("|*+?()[]-\\^")
+escaped_character_classes = {
+    r'\d': set(string.digits),
+    r'\D': set(string.printable) - set(string.digits),
+    r'\w': set(string.ascii_letters + string.digits + '_'),
+    r'\W': set(string.printable) - set(string.ascii_letters + string.digits + '_'),
+    r'\s': set(string.whitespace),
+    r'\S': set(string.printable) - set(string.whitespace),
+    r'\n': {'\n'},
+    r'\t': {'\t'},
+    r'\r': {'\r'},
+    r'\0': {'\0'},
+    r'\f': {'\f'},
+    r'\v': {'\v'},
+}
 
-SYMBOL_CHARS = (
-    set(string.ascii_letters)
-    | set(string.digits)
-    | set("!\"#$%&',./:;<=>@^_`~")
-)
-
+def escaped_class(escape_sequence):
+    if escape_sequence in escaped_character_classes:
+        return escaped_character_classes[escape_sequence]
+    escaped_character = escape_sequence[1:]
+    if escaped_character in regex_meta_characters:
+        return {escaped_character}
+    raise SyntaxError(f"Unknown escape sequence: {character}")
 
 def character_range(start, end):
-    return [character for character in range(ord(start), ord(end) + 1)]
+    start, end = min(ord(start), ord(end)), max(ord(start), ord(end))
+    return {chr(character) for character in range(start, end + 1)}
 
-def ignore():
-    return lambda children: (lambda left: left)
-def constructCharacterClass(): 
-    return lambda children: reduce(Union, [Symbol(chr(character)) for character in character_range(children[0],children[2])])
-def constructBinary(constructor, index):
-    return lambda children: (lambda left: constructor(left, children[index]))
-def constructUnary(constructor):
-    return lambda children: (lambda node: constructor(node))
-def apply():
-    return lambda children: children[1](children[0])
-def escape():
-    lambda children : Symbol(frozenset({children[1]}))
+class LR1RegexParser:
 
-def special_escape(c):
-    ch = c[0]
-
-    if isinstance(ch, list):
-        ch = ch[0]
-
-    if ch == 'd':
-        return reduce(Union, [Symbol(str(i)) for i in range(10)])
-
-    elif ch == 's':
-        return reduce(Union, [Symbol(c) for c in WHITESPACE])
-
-    else:
-        return Symbol(frozenset(ch))
-
-
-class LL1RegexParser:
     def __init__(self):
-
+    
         regex_tokens = {}
+        regex_tokens[f'escaped'] = Concatenation(Symbol('\\'), Symbol(string.printable))
         for character in regex_meta_characters:
-            regex_tokens[character] = Symbol(frozenset({character}))
-        regex_tokens["symbol"] = Symbol(frozenset(string.printable))
+            regex_tokens[character] = Symbol(character)
+        
+        regex_tokens["symbol"] = Symbol(set(string.printable))
 
         self.scanner = Scanner(regex_tokens)
 
-        # for token in self.scanner.scan(r"ab*\d"):
-        #     print(token)
-
-        productions = {} 
-        productions["regex"] = {("concat", "A1"): apply()}
-        productions["A1"] = {
-            ("|", "regex"): constructBinary(Union, 1),
-            tuple(): ignore()
+        productions = {}
+        productions["regex"] = {
+            ("regex", "|", "term"): lambda c: Union(c[0], c[2]),
+            ("term",):              lambda c: c[0],
         }
-        productions["concat"] = {("rep", "A2"): apply()}
-        productions["A2"] = {
-            ("concat",): constructBinary(Concatenation, 0),
-            tuple(): ignore()
+        productions["term"] = {
+            ("term", "factor"):  lambda c: Concatenation(c[0], c[1]),
+            ("factor",):         lambda c: c[0],
         }
-        productions["rep"] = {("atom", "A3"): apply()}
-        productions["A3"] = {
-            ("*",): constructUnary(KleeneClosure),
-            ("?",): constructUnary(Optional),
-            ("+",): constructUnary(Plus),
-            tuple(): ignore()
+        productions["factor"] = {
+            ("atom", "*"): lambda c: KleeneClosure(c[0]),
+            ("atom", "+"): lambda c: Plus(c[0]),
+            ("atom", "?"): lambda c: Optional(c[0]),
+            ("atom",):     lambda c: c[0],
         }
         productions["atom"] = {
-            ("(", "regex", ")"): lambda c: c[1],
-            ("[", "range_list", "]"): lambda c: c[1],
-            ("symbol",): lambda c: Symbol(c[0]),
-            ("\\", "escaped"): lambda c: c[1]
+            ("symbol",):            lambda c: Symbol(c[0]),
+            ("escaped",):            lambda c: Symbol(escaped_class(c[0])),
+            ("(", "regex", ")"):    lambda c: c[1],
+            ("[", "classes", "]"):  lambda c: Symbol(c[1]),
+            ("[", "^", "classes", "]"): lambda c: Symbol(set(string.ascii_letters) - c[2]),
         }
-        productions["escaped"] = {
-            ("symbol",): special_escape,
-            ("|",): lambda c: Symbol(c[0]),
-            ("*",): lambda c: Symbol(c[0]),
-            ("+",): lambda c: Symbol(c[0]),
-            ("?",): lambda c: Symbol(c[0]),
-            ("(",): lambda c: Symbol(c[0]),
-            (")",): lambda c: Symbol(c[0]),
-            ("[",): lambda c: Symbol(c[0]),
-            ("]",): lambda c: Symbol(c[0]),
-            ("-",): lambda c: Symbol(c[0]),
-            ("\\",): lambda c: Symbol(c[0])
+        productions["classes"] = {
+            ("class", "classes"): lambda c: c[0] | c[1],
+            tuple(): lambda c: set(),
         }
-        productions["range_list"] = {
-            ("range", "range_list_tail"): apply()
-        }
-        productions["range_list_tail"] = {
-            ("range", "range_list_tail"): constructBinary(Union, 0),
-            tuple(): ignore()
-        }
-        productions["range"] = {
-            ("symbol", "-", "symbol"): constructCharacterClass()
+        productions["class"] = {
+            ("symbol",): lambda c: set(c[0]),
+            ("symbol", "-", "symbol"): lambda c: character_range(c[0], c[2]),
+            ("escaped",): lambda c: escaped_class(c[0]),
         }
 
-        self.grammar = Grammar(start_symbol="regex", productions=productions, terminals=regex_tokens.keys())
-        if not self.grammar.is_LL1():
-            print(self.grammar.print_LL1_conflicts())
-        self.parser = LL1Parser(self.grammar)
+        grammar = Grammar(start_symbol="regex", productions=productions, terminals=regex_tokens.keys())
+        self.parser = LR1Parser(grammar)
+        self.parser.print_LR1_conflicts()
 
-    def parse(self, regex):
-        accepted, stack = self.parser.parse(self.scanner.scan(regex))
+    def parse(self, regex_string):
+
+        accepted, stack = self.parser.parse(self.scanner.scan(regex_string))
         return stack[0] if accepted else None
-
-parser = LL1RegexParser()
-# print(parser.parse("[a-cA-Z]"))
-
-
 
