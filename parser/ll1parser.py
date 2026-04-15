@@ -9,6 +9,7 @@ class LL1Parser:
         self.grammar = grammar
 
         if not self.grammar.is_LL1():
+            self.grammar.print_LL1_conflicts()
             raise ValueError("Grammar is not LL(1)")
 
         self.compute_lookahead_table()

@@ -5,17 +5,20 @@ class Sequence(tuple):
     def __bool__(self):
         return len(self) > 0
 
-def escape_char(c):
-    if c == " ":
-        return r"\s"   # or "␠" if you prefer visual symbol
-    if c == "\n":
+def descape(character):
+    if character == " ":
+        return " "   # or "␠" if you prefer visual symbol
+    if character == "\n":
         return r"\n"
-    if c == "\t":
+    if character == "\t":
         return r"\t"
-    if c == "\r":
+    if character == "\r":
         return r"\r"
-    return c
+    if character == "\f":
+        return r"\f"
+    if character == "\v":
+        return r"\v"
+    return character
 
-
-def print_set(s):
-    return "{" + ", ".join(sorted(escape_char(c) for c in s)) + "}"
+def pretty_set(ugly_set):
+    return "{" + ", ".join(sorted(descape(character) for character in ugly_set)) + "}"
