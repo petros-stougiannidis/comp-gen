@@ -1,75 +1,8 @@
 from specification import unicode
-from specification.grammar import concat1
 from specification.item import LR1Item
+from parser.lr1_state import LR1State
 from formatting.print import Sequence
 from collections import defaultdict
-
-# data structure for accumulating lookahead symbols for LR1Items with the same core
-class Closure:
-    def __init__(self):
-        self.lookahead = {}  # (lhs, rhs, dot) -> set(lookahead)
-
-    def add(self, item):
-        core = (item.lhs, item.rhs, item.dot)
-
-        if core not in self.lookahead:
-            self.lookahead[core] = set(item.lookahead)
-            return True # new item
-
-        old_size = len(self.lookahead[core])
-        self.lookahead[core] |= set(item.lookahead)
-
-        return len(self.lookahead[core]) > old_size  # changed?
-
-    def items(self):
-        for (lhs, rhs, dot), lookahead in self.lookahead.items():
-            yield LR1Item(lhs, rhs, dot, lookahead)
-
-    def __iter__(self):
-        return self.items()
-
-def epsilon_closure(items, grammar):
-    closure = Closure()
-    worklist = []
-
-    for item in items:
-        closure.add(item)
-        worklist.append(item)
-
-    while worklist:
-        item = worklist.pop()
-        A = item.next_symbol()
-        if A in grammar.non_terminals:
-            right_context = item.advance().get_right_context()
-            for rhs in grammar.delta[A]:
-                lookahead = concat1(grammar.first1(right_context), item.lookahead)
-                new_item = LR1Item(A, rhs, lookahead=lookahead)
-                if closure.add(new_item):
-                    worklist.append(new_item)
-    return closure
-
-class LR1State:
-    def __init__(self, core, grammar, state_id=None):
-        self.id = state_id
-        self.core = core
-        self.closure = epsilon_closure(core, grammar)
-        self.identity = frozenset({(item.lhs, item.rhs, item.dot, frozenset(item.lookahead)) for item in self.closure})
-    
-    def items(self):
-        for item in self.closure:
-            yield item
-
-    def __hash__(self):
-        return hash(self.identity)
-
-    def __eq__(self, other):
-        if not isinstance(other, LR1State):
-            return False
-        return self.identity == other.identity
-
-    def __iter__(self):
-        return self.items()
-
 
 class Shift:
     def __init__(self, terminal):
@@ -79,7 +12,7 @@ class Shift:
         return isinstance(other, Shift) and self.terminal == other.terminal
 
     def __hash__(self):
-        return hash(("SHIFT", self.terminal))
+        return hash(self.terminal)
 
     def __str__(self):
         return f'Shift: {self.terminal}'
@@ -92,7 +25,7 @@ class Reduction:
         return isinstance(other, Reduction) and self.item == other.item
 
     def __hash__(self):
-        return hash(("REDUCTION", self.item))
+        return hash(self.item)
 
     def __str__(self):
         return f'Reduce: {self.item}'
@@ -163,11 +96,11 @@ class LR1Parser:
     def print_LR1_conflicts(self):
         conflicts = self.LR1_conflicts()
         if conflicts:
-            print("Total number of conflics:", len(self.LR1_conflicts()))
+            print("Total number of conflics:", len(conflicts))
         for state, terminal, actions in conflicts:
             print(f"Conflict in state {state.id} on terminal '{terminal}':")
             for action in actions:
-                print(f"  {action}")
+                print(f"\t• {action}")
             print()
 
     # TODO: implement
@@ -235,7 +168,6 @@ class LR1Parser:
             action = self.get_action(current_state, token)
             while isinstance(action, Reduction):
                 reduction = action
-                print(reduction)
                 if reduction.item == final_reduction:
                     return True, semantic_stack
 
@@ -256,7 +188,6 @@ class LR1Parser:
                 action = self.get_action(current_state, token)
             
             if isinstance(action, Shift):
-                print(action)
                 parsing_stack.append(self.goto[current_state][token])
                 semantic_stack.append(value)
                 current_state = parsing_stack[-1]

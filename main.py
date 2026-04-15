@@ -71,8 +71,6 @@ if "-lr1" in command_line_arguments:
     if "-pdf" in command_line_arguments:
         scanner.nfa.generatePDF()
 
-    # TODO: implement action callbacks
-
     productions = {}
     productions["S"] = {("E",): lambda c : c[0]}
     productions["E"] = {("E", "+", "E"): lambda c: ("+", c[0], c[2]),
@@ -116,8 +114,6 @@ if "-reg" in command_line_arguments:
     scanner = Scanner(reg_tokens)
     if "-pdf" in command_line_arguments:
         scanner.nfa.generatePDF()
-
-    # TODO: implement action callbacks
 
     productions = {}
     productions["regex"] = {("regex", ".", "regex"): lambda c: Concatenation(c[0], c[2]),
@@ -163,21 +159,6 @@ if "-conf" in command_line_arguments:
     if "-pdf" in command_line_arguments:
         scanner.nfa.generatePDF()
 
-    # TODO: implement action callbacks
-
-    # productions = {}
-    # productions["file"] = {
-    #     ("line", "tail"): None,
-    #     tuple(): None
-    # }
-    # productions["tail"] = {
-    #     ("line",): None,
-    #     tuple(): None
-    # }
-    # productions["line"] = {
-    #     ("KEY", "EQ", "VAL", "NEW_LINE"): None,
-    #     ("KEY", "EQ", "VAL"): None
-    # }
     productions = {}
     productions["file"] = {
         ("line", "tail"): None,
@@ -198,13 +179,6 @@ if "-conf" in command_line_arguments:
     grammar = Grammar(start_symbol="file", productions=productions, terminals=conf_tokens.get_names())
 
     parser = LR1Parser(grammar)
-
-    # precedences = [
-    #     ("left", ["|"]),          # lowest
-    #     ("left", ["."]),          # concatenation
-    #     ("right", ["*", "+", "?"])  # highest (postfix)
-    # ]
-    # parser.patch(precedences)
     parser.print_LR1_conflicts()
 
     tokens = (token for token in scanner.scan_file("test.txt"))
