@@ -241,14 +241,15 @@ class Grammar:
         for A in self.delta:
             for i, rhs in enumerate(self.delta[A]):
                 if len(rhs) == 0:
-                    string += f"{A}[{i}] {unicode.right_arrow} {unicode.epsilon}"
+                    string += f"{A} {unicode.right_arrow} {unicode.epsilon}"
                 else:
-                    string += f"{A}[{i}] {unicode.right_arrow} {Sequence(rhs)}"
+                    string += f"{A} {unicode.right_arrow} {Sequence(rhs)}"
                 if i < len(self.delta[A])-1:
                     string += " | "
                 else:
                     string += "\n"
         string += "\n"
+        
 
         for A in self.non_terminals:
             string += f"F{unicode.epsilon}({A}) = {pretty_set(self.epsilon_free_first1_set[A])}\n"

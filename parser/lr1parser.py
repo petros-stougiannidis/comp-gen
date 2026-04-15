@@ -153,6 +153,7 @@ class LR1Parser:
     def get_action(self, current_state, token):
         actions = self.action_table[current_state][token]
         if not actions:
+            # TODO: implement practial error messages
             raise SyntaxError(f"Unexpected token: {token} in state {current_state.id}")
         return next(iter(actions)) 
 

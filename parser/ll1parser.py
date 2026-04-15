@@ -19,7 +19,7 @@ class LL1Parser:
 
         # fill in lookahead table, such that every production alternative can be
         # deterministicly chosen, given the next lookahead symbol.
-        # If the given grammar is LL(1), deteminism is guaranteed
+        # If the given grammar is LL(1), determinism is guaranteed
         for (A, rhs) in self.grammar.productions():
             for lookahead_symbol in concat1(self.grammar.first1(rhs), self.grammar.follow1_set[A]):
                 self.lookahead_table[(A, lookahead_symbol)].append(rhs)

@@ -1,5 +1,6 @@
 class Sequence(tuple):
     def __repr__(self):
+        # TODO: do i want the epsilon here?
         return " ".join(map(str, self)) if self else 'ε'
 
     def __bool__(self):
@@ -7,7 +8,7 @@ class Sequence(tuple):
 
 def descape(character):
     if character == " ":
-        return " "   # or "␠" if you prefer visual symbol
+        return " "
     if character == "\n":
         return r"\n"
     if character == "\t":

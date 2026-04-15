@@ -8,7 +8,6 @@ class Scanner:
             self.tokens = tokens.get_tokens()
         elif isinstance(tokens, dict):
             self.tokens = tokens.items()
-        # elif isinstance(tokens, TokenRegistry):
 
         # TODO: investigate: non-disjoint token overlaps
         

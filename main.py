@@ -16,9 +16,6 @@ if "-ll1" in command_line_arguments:
     ll1_tokens.register("|", r"\|")
     ll1_tokens.register("symbol", r"[a-zA-Z]")
 
-    # for ast in ll1_tokens.values():
-    #     print(ast)
-
     scanner = Scanner(ll1_tokens)
     if "-pdf" in command_line_arguments:
         scanner.nfa.generatePDF()
@@ -58,10 +55,9 @@ if "-ll1" in command_line_arguments:
     tokens = scanner.scan(r"(a|b)*cd+")
 
     accepted, stack = parser.parse(tokens, print_stack=("-stack" in command_line_arguments))
-    print(stack, stack[0])
+    print(accepted, stack[0] if stack else None)
 
 if "-lr1" in command_line_arguments:
-    # LR1
     lr1_tokens = TokenRegistry()
     lr1_tokens.register("WHITESPACE", r"\s+")
     lr1_tokens.register("*", r"\*")
@@ -96,13 +92,10 @@ if "-lr1" in command_line_arguments:
     parser.patch(precedences)
     parser.print_LR1_conflicts()
 
-    # for token in scanner.scan("0 + (12 * (34 + 3))"):
-    #     print(token)
-
     tokens = (token for token in scanner.scan("0 + (12 * (34 + 3))") if token.type != "WHITESPACE")
 
     accepted, stack = parser.parse(tokens)
-    print(stack[0])
+    print(accepted, stack[0] if stack else None)
 
 
 if "-reg" in command_line_arguments:
@@ -151,7 +144,6 @@ if "-reg" in command_line_arguments:
     accepted, stack = parser.parse(tokens)
     print(accepted, stack[0] if stack else None)
 
-
 if "-conf" in command_line_arguments:
     # LR1
     conf_tokens = TokenRegistry()
@@ -167,19 +159,19 @@ if "-conf" in command_line_arguments:
 
     productions = {}
     productions["file"] = {
-        ("line", "tail"): None,
-        tuple(): None
+        ("line", "tail"): lambda child: child[0] + child[1],
+        tuple(): []
     }
     productions["tail"] = {
-        ("line", "tail"): None,
-        tuple(): None
+        ("line", "tail"): lambda child: child[0] + child[1],
+        tuple(): []
     }
     productions["line"] = {
-        ("spec", "NEW_LINE"): None,
-        ("spec",): None,
+        ("spec", "NEW_LINE"): lambda child: [child[0]],
+        ("spec",): lambda child: [child[0]],
     }
     productions["spec"] = {
-        ("KEY", "EQ", "VAL"): None
+        ("KEY", "EQ", "VAL"): lambda child: (child[0], child[1], child[2])
     }
 
     grammar = Grammar(start_symbol="file", productions=productions, terminals=conf_tokens.get_names())
@@ -187,34 +179,13 @@ if "-conf" in command_line_arguments:
     parser = LR1Parser(grammar)
     parser.print_LR1_conflicts()
 
-    # tokens = (token for token in scanner.scan_file("test.txt"))
-    # for t in tokens:
-    #     print(t)
-
     tokens = (token for token in scanner.scan_file("test.txt") if token.type != "SPACE")
     accepted, stack = parser.parse(tokens)
-    print(accepted, stack)
-
-if "-test" in command_line_arguments:
-    test_tokens = TokenRegistry()
-    test_tokens.register("ID", r"[a-zA-Z][a-zA-Z0-9]*")
-    test_tokens.register("SPACE", r"\s")
-    test_tokens.register("LETTERS", r"[a-zA-Z]+")
-    test_tokens.register("NUMBER", r"[0-9]+")
-    test_tokens.register("INTEGER", r"[1-9][0-9]*")
-
-    scanner = Scanner(test_tokens)
-    if "-pdf" in command_line_arguments:
-        scanner.nfa.generatePDF()
-
-    for token in scanner.scan("1234 01234 asdf asdf1234 1234asdf"):
-        # if token.type != "SPACE":
-            # print(token)
-        print(token)
+    print(accepted, stack[0] if stack else None)
 
 if "-dev" in command_line_arguments:
-    test_tokens = TokenRegistry()
-    print(test_tokens.register("a", r"ab\*\s([^a-xA-Z0-9]|\d)"))
+    from specification.item import Item
+    print(Item("S", tuple()))
     
 
 
