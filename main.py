@@ -5,6 +5,7 @@ from specification.grammar import Grammar
 from parser.lr1parser import LR1Parser
 from parser.ll1parser import LL1Parser
 from scanner.abstract_regex_tree import Union, Concatenation, KleeneClosure, Optional, Plus, Symbol
+from visualization.graph import render_nfa, render_lr1
 
 if "-ll1" in command_line_arguments:
     ll1_tokens = TokenRegistry()
@@ -17,8 +18,7 @@ if "-ll1" in command_line_arguments:
     ll1_tokens.register("symbol", r"[a-zA-Z]")
 
     scanner = Scanner(ll1_tokens)
-    if "-pdf" in command_line_arguments:
-        scanner.nfa.generatePDF()
+    render_nfa(scanner.nfa)
 
     def ignore():
         return lambda child: (lambda left: left)
@@ -67,8 +67,10 @@ if "-lr1" in command_line_arguments:
     lr1_tokens.register("int", r"[0-9]+")
 
     scanner = Scanner(lr1_tokens)
-    if "-pdf" in command_line_arguments:
-        scanner.nfa.generatePDF()
+    render_nfa(scanner.nfa)
+    
+    from visualization.graph import render_nfa
+    render_nfa(scanner.nfa)
 
     productions = {}
     productions["S"] = {("E",): lambda c : c[0]}
@@ -84,6 +86,7 @@ if "-lr1" in command_line_arguments:
             grammar.print_LL1_conflicts() 
 
     parser = LR1Parser(grammar)
+    render_lr1(parser.automaton)
 
     precedences = [
         ("left",  ["+","-"]),
@@ -111,8 +114,7 @@ if "-reg" in command_line_arguments:
     reg_tokens.register("symbol", r"[a-zA-Z]")
 
     scanner = Scanner(reg_tokens)
-    if "-pdf" in command_line_arguments:
-        scanner.nfa.generatePDF()
+    render_nfa(scanner.nfa)
 
     productions = {}
     productions["regex"] = {("regex", ".", "regex"): lambda c: Concatenation(c[0], c[2]),
@@ -130,6 +132,7 @@ if "-reg" in command_line_arguments:
             grammar.print_LL1_conflicts() 
 
     parser = LR1Parser(grammar)
+    render_lr1(parser.automaton)
 
     precedences = [
         ("left", ["|"]),          # lowest
@@ -154,8 +157,7 @@ if "-conf" in command_line_arguments:
     conf_tokens.register("VAL", r"[0-9]")
 
     scanner = Scanner(conf_tokens)
-    if "-pdf" in command_line_arguments:
-        scanner.nfa.generatePDF()
+    render_nfa(scanner.nfa)
 
     productions = {}
     productions["file"] = {
@@ -175,18 +177,32 @@ if "-conf" in command_line_arguments:
     }
 
     grammar = Grammar(start_symbol="file", productions=productions, terminals=conf_tokens.get_names())
-
+    
     parser = LR1Parser(grammar)
+    render_lr1(parser.automaton)
     parser.print_LR1_conflicts()
 
     tokens = (token for token in scanner.scan_file("test.txt") if token.type != "SPACE")
     accepted, stack = parser.parse(tokens)
     print(accepted, stack[0] if stack else None)
 
-if "-dev" in command_line_arguments:
-    from specification.item import Item
-    print(Item("S", tuple()))
+if "-debug" in command_line_arguments:
     
+    lr1_tokens = TokenRegistry()
+    lr1_tokens.register("c", r"c")
+    lr1_tokens.register("d", r"d")
+
+    scanner = Scanner(lr1_tokens)
+    render_nfa(scanner.nfa)
+
+    
+    productions = {}
+    productions["S"] = {("C", "C"): None}
+    productions["C"] = {("c", "C"): None, ("d",): None}
+
+    grammar = Grammar(start_symbol="S", productions=productions, terminals=lr1_tokens.get_names())
+    parser = LR1Parser(grammar)
+    render_lr1(parser.automaton)
 
 
 
