@@ -1,6 +1,6 @@
 from specification import unicode
 from specification.item import LR1Item
-from parser.lr1_state import LR1State
+from parser.canonical_lr1_automaton import CanonicalLR1Automaton
 from formatting.print import Sequence
 from collections import defaultdict
 
@@ -33,38 +33,10 @@ class Reduction:
 class LR1Parser:
     def __init__(self, grammar):
         self.grammar = grammar
-        self.states, self.goto = self.canonical_LR1_automaton()
+        self.automaton = CanonicalLR1Automaton(grammar)
+        self.start_state = self.automaton.start_state
+        self.states, self.goto = self.automaton.states, self.automaton.transitions
         self.action_table = self.action_table()
-
-    def canonical_LR1_automaton(self):
-        grammar = self.grammar
-        states = set()
-        transition = defaultdict(lambda: defaultdict(lambda: None))
-        start_items = [LR1Item(grammar.start_symbol, rhs, lookahead={'$'}) for rhs in grammar.delta[grammar.start_symbol]]
-
-        self.start_state = LR1State(start_items, grammar, state_id=0)
-        state_id = 1
-        worklist = [self.start_state]
-
-        while worklist:
-            
-            state = worklist.pop()
-            states.add(state)
-            new_state_core = defaultdict(list)
-            for item in state:
-                symbol = item.next_symbol()
-                if not symbol:
-                    continue
-                new_state_core[symbol].append(item.advance())
-
-            for symbol, core in new_state_core.items():
-                new_state = LR1State(core, grammar, state_id)
-                state_id += 1
-                transition[state][symbol] = new_state
-                if new_state not in states:
-                    worklist.append(new_state)
-
-        return states, transition
 
     def action_table(self):
         grammar = self.grammar
@@ -186,12 +158,12 @@ class LR1Parser:
                 else:
                     semantic_stack.append(children)
                 
-                parsing_stack.append(self.goto[parsing_stack[-1]][reduction.item.lhs])
+                parsing_stack.append(self.goto[(parsing_stack[-1], reduction.item.lhs)])
                 current_state = parsing_stack[-1]
                 action = self.get_action(current_state, token)
             
             if isinstance(action, Shift):
-                parsing_stack.append(self.goto[current_state][token])
+                parsing_stack.append(self.goto[(current_state, token)])
                 semantic_stack.append(value)
                 current_state = parsing_stack[-1]
                 continue                
