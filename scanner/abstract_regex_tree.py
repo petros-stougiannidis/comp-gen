@@ -47,7 +47,7 @@ class Symbol(Regex):
             transitions[self][leaf.label].add(leaf)
 
     def __repr__(self):
-        return super().__repr__() + f'{pretty_set(self.label)}id={self.id}'
+        return f'{pretty_set(self.label)}id={self.id}'
 
     def __str__(self):
         return pretty_set(self.label) if len(self.label) >= 2 else descape(next(iter(self.label)))

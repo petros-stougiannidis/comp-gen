@@ -34,9 +34,7 @@ class Item:
             return f"[{self.lhs} → •]"
 
     def __eq__(self, other):
-        if not isinstance(other, Item):
-            return False
-        return (self.lhs, self.rhs, self.dot) == (other.lhs, other.rhs, other.dot)
+        return isinstance(other, Item) and (self.lhs, self.rhs, self.dot) == (other.lhs, other.rhs, other.dot)
 
     def __hash__(self):
         return hash((self.lhs, self.rhs, self.dot))
@@ -55,9 +53,8 @@ class LR1Item(Item):
         return hash((self.lhs, self.rhs, self.dot, frozenset(self.lookahead)))
 
     def __eq__(self, other):
-        if not isinstance(other, LR1Item):
-            return False
-        return (self.lhs, self.rhs, self.dot, self.lookahead) == \
+        return isinstance(other, LR1Item) and \
+            (self.lhs, self.rhs, self.dot, self.lookahead) == \
             (other.lhs, other.rhs, other.dot, other.lookahead)
 
     def __repr__(self):

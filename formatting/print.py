@@ -8,7 +8,7 @@ class Sequence(tuple):
 
 def descape(character):
     if character == " ":
-        return " "
+        return "␣"
     if character == "\n":
         return r"\n"
     if character == "\t":

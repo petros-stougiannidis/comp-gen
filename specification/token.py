@@ -8,6 +8,7 @@ class TokenRegistry:
     def register(self, name, pattern):
         ast = self.regex_parser.parse(pattern)
         self.tokens[name] = ast
+        # TODO: return string or ast for composition
         return ast
 
     def get_tokens(self):
