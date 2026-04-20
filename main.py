@@ -2,8 +2,8 @@ from sys import argv as command_line_arguments
 from scanner.scanner import Scanner
 from specification.token import TokenRegistry
 from specification.grammar import Grammar
-from parser.lr1parser import LR1Parser
-from parser.ll1parser import LL1Parser
+from parser.lr1_parser import LR1Parser
+from parser.ll1_parser import LL1Parser
 from scanner.abstract_regex_tree import Union, Concatenation, KleeneClosure, Optional, Plus, Symbol
 from visualization.graph import render_nfa, render_lr1
 
