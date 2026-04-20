@@ -39,10 +39,12 @@ class LR1RegexParser:
     def __init__(self):
     
         regex_tokens = {}
+        # 1. priority: detect escape sequences
         regex_tokens[f'escaped'] = Concatenation(Symbol('\\'), Symbol(string.printable))
+        # 2. priority: detect regex meta characters
         for character in regex_meta_characters:
             regex_tokens[character] = Symbol(character)
-        
+        # 3. priority: detect every other character
         regex_tokens["symbol"] = Symbol(set(string.printable))
 
         self.scanner = Scanner(regex_tokens)
@@ -69,10 +71,13 @@ class LR1RegexParser:
             ("[", "classes", "]"):  lambda c: Symbol(c[1]),
             ("[", "^", "classes", "]"): lambda c: Symbol(set(string.ascii_letters) - c[2]),
         }
+        # each class inside [] contributes to the set of characters specified by []
         productions["classes"] = {
             ("class", "classes"): lambda c: c[0] | c[1],
             tuple(): lambda c: set(),
         }
+        # a class inside [] can be a single symbol, a range of symbols or 
+        # a set of characters described by an escape sequence
         productions["class"] = {
             ("symbol",): lambda c: set(c[0]),
             ("symbol", "-", "symbol"): lambda c: character_range(c[0], c[2]),
@@ -81,7 +86,6 @@ class LR1RegexParser:
 
         grammar = Grammar(start_symbol="regex", productions=productions, terminals=regex_tokens.keys())
         self.parser = LR1Parser(grammar)
-        self.parser.print_LR1_conflicts()
 
     def parse(self, regex_string):
 

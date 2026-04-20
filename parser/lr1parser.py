@@ -1,4 +1,3 @@
-from specification import unicode
 from specification.item import LR1Item
 from parser.canonical_lr1_automaton import CanonicalLR1Automaton
 from formatting.print import Sequence
@@ -31,15 +30,17 @@ class Reduction:
         return f'Reduce: {self.item}'
 
 class LR1Parser:
-    def __init__(self, grammar):
+    def __init__(self, grammar, precedences=None):
         self.grammar = grammar
-        self.automaton = CanonicalLR1Automaton(grammar)
-        self.start_state = self.automaton.start_state
-        self.states, self.goto = self.automaton.states, self.automaton.transitions
+        automaton = CanonicalLR1Automaton(grammar)
+        self.start_state = automaton.start_state
+        self.states, self.goto = automaton.states, automaton.transitions
         self.action_table = self.action_table()
+        if precedences:
+            self.patch(precedences)
+        self.print_LR1_conflicts()
 
     def action_table(self):
-        grammar = self.grammar
         action_table = defaultdict(lambda: defaultdict(set))
 
         for state in self.states:
@@ -67,10 +68,9 @@ class LR1Parser:
 
     def print_LR1_conflicts(self):
         conflicts = self.LR1_conflicts()
-        if conflicts:
-            print("Total number of conflics:", len(conflicts))
+        
         for state, terminal, actions in conflicts:
-            print(f"Conflict in state {state.id} on terminal '{terminal}':")
+            print(f"LR1 conflict on terminal '{terminal}':")
             for action in actions:
                 print(f"\t• {action}")
             print()
@@ -125,14 +125,20 @@ class LR1Parser:
     def get_action(self, current_state, token):
         actions = self.action_table[current_state][token]
         if not actions:
-            # TODO: implement practial error messages
-            raise SyntaxError(f"Unexpected token: {token} in state {current_state.id}")
+            # TODO: implement practical error messages
+            expected = [
+                token for token, actions in self.action_table[current_state].items()
+                if actions
+            ]
+            raise SyntaxError(f"Unexpected token: {token}. Expected: {expected}")
+        # TODO: right now, if action table is not deterministic, it chooses non-deterministically
         return next(iter(actions)) 
 
     def parse(self, tokens):
         final_reduction = LR1Item(self.grammar.artificial_start_symbol, (self.grammar.original_start_symbol,), dot=1, lookahead={'$'})
         parsing_stack, semantic_stack = [self.start_state], []
 
+        # TODO: investigate iterator design
         for token in tokens:
 
             current_state = parsing_stack[-1]

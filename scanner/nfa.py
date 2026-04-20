@@ -20,6 +20,6 @@ class NFA:
 
     def accepts(self, word):
         current_states = self.start_states
-        for s in word:
-            current_states = self.transition(current_states, s)
+        for symbol in word:
+            current_states = self.transition(current_states, symbol)
         return any(state in self.final_states for state in current_states)

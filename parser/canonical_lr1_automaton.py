@@ -26,7 +26,7 @@ class Closure:
     def __iter__(self):
         return self.items()
 
-def epsilon_closure(items, grammar):
+def epsilon_closure(items, grammar): # LR1 theory
     closure = Closure()
     worklist = set()
 
@@ -42,14 +42,13 @@ def epsilon_closure(items, grammar):
             for rhs in grammar.delta[A]:
                 lookahead = concat1(grammar.first1(right_context), item.lookahead)
                 new_item = LR1Item(A, rhs, lookahead=lookahead)
-                if closure.add(new_item):
+                if closure.add(new_item): # returns true if something changed
                     worklist.add(new_item)
     return closure
 
 class LR1State:
 
-    def __init__(self, items, state_id=None):
-        self.id = state_id
+    def __init__(self, items):
         self.items = frozenset(items)
 
     def is_final(self):
@@ -59,7 +58,7 @@ class LR1State:
         return hash(self.items)
 
     def __eq__(self, other):
-        return isinstance(other, State) and self.items == other.items
+        return isinstance(other, LR1State) and self.items == other.items
 
     def __iter__(self):
         return iter(self.items)
@@ -73,8 +72,7 @@ class CanonicalLR1Automaton:
         start_items = [LR1Item(grammar.start_symbol, rhs, lookahead={'$'}) for rhs in grammar.delta[grammar.start_symbol]]
         core = frozenset(start_items)
         closure = epsilon_closure(core, grammar)
-        self._start_state = LR1State(closure, state_id=0)
-        state_id = 1
+        self._start_state = LR1State(closure)
         self._states[core] = self._start_state
         
         worklist = {self._start_state}
@@ -92,16 +90,15 @@ class CanonicalLR1Automaton:
                 core = frozenset(items)
                 if core not in self._states:
                     closure = epsilon_closure(core, grammar)
-                    new_state = LR1State(closure, state_id)
+                    new_state = LR1State(closure)
                     self._states[core] = new_state
-                    state_id += 1
                     worklist.add(new_state)
 
                 self._transitions[(state, symbol)] = self._states[core]
 
     @property
     def states(self):
-        return self._states.values()
+        return set(self._states.values())
 
     @property
     def start_state(self):

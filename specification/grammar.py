@@ -228,7 +228,7 @@ class Grammar:
             lookahead_symbols1 = concat1(self.first1(alternative1), self.follow1_set[A])
             lookahead_symbols2 = concat1(self.first1(alternative2), self.follow1_set[A])
             production1, production2 = Sequence(alternative1), Sequence(alternative2)
-            print(f"LL1 conflict: [{A} → {Sequence(production1)}] or [{A} → {Sequence(production2)}]")
+            print(f"LL1 conflict: [{A} → {Sequence(production1)}] vs [{A} → {Sequence(production2)}]")
             print(f"First{unicode.subscript1}({production1}) {unicode.concat1} Follow{unicode.subscript1}({A}) {unicode.set_union} First{unicode.subscript1}({production2}) {unicode.concat1} Follow{unicode.subscript1}({A}) = {pretty_set(lookahead_symbols1&lookahead_symbols2)}\n")
 
     def __repr__(self):

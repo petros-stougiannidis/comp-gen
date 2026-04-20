@@ -18,7 +18,8 @@ if "-ll1" in command_line_arguments:
     ll1_tokens.register("symbol", r"[a-zA-Z]")
 
     scanner = Scanner(ll1_tokens)
-    render_nfa(scanner.nfa)
+    if "-nfa" in command_line_arguments:
+        render_nfa(scanner.nfa)
 
     def ignore():
         return lambda child: (lambda left: left)
@@ -45,10 +46,6 @@ if "-ll1" in command_line_arguments:
                         ("symbol",): lambda c: Symbol(c[0])}
 
     grammar = Grammar(start_symbol="regex", productions=productions, terminals=ll1_tokens.get_names())
-    if "-grammar" in command_line_arguments:
-        print(grammar)
-        if not grammar.is_LL1():
-            grammar.print_LL1_conflicts()
 
     parser = LL1Parser(grammar)
 
@@ -67,11 +64,9 @@ if "-lr1" in command_line_arguments:
     lr1_tokens.register("int", r"[0-9]+")
 
     scanner = Scanner(lr1_tokens)
-    render_nfa(scanner.nfa)
+    if "-nfa" in command_line_arguments:
+        render_nfa(scanner.nfa)
     
-    from visualization.graph import render_nfa
-    render_nfa(scanner.nfa)
-
     productions = {}
     productions["S"] = {("E",): lambda c : c[0]}
     productions["E"] = {("E", "+", "E"): lambda c: ("+", c[0], c[2]),
@@ -80,21 +75,16 @@ if "-lr1" in command_line_arguments:
                         ("int",): lambda c: c[0]}
 
     grammar = Grammar(start_symbol="S", productions=productions, terminals=lr1_tokens.get_names())
-    if "-grammar" in command_line_arguments:
-        print(grammar)
-        if not grammar.is_LL1():
-            grammar.print_LL1_conflicts() 
-
-    parser = LR1Parser(grammar)
-    render_lr1(parser.automaton)
+    grammar.print_LL1_conflicts()
 
     precedences = [
         ("left",  ["+","-"]),
         ("left",  ["*","/"]),
     ]
-    parser.patch(precedences)
-    parser.print_LR1_conflicts()
-
+    parser = LR1Parser(grammar, precedences)
+    if "-lr1automaton" in command_line_arguments:
+        render_lr1(parser.automaton)
+    
     tokens = (token for token in scanner.scan("0 + (12 * (34 + 3))") if token.type != "WHITESPACE")
 
     accepted, stack = parser.parse(tokens)
@@ -114,7 +104,8 @@ if "-reg" in command_line_arguments:
     reg_tokens.register("symbol", r"[a-zA-Z]")
 
     scanner = Scanner(reg_tokens)
-    render_nfa(scanner.nfa)
+    if "-nfa" in command_line_arguments:
+        render_nfa(scanner.nfa)
 
     productions = {}
     productions["regex"] = {("regex", ".", "regex"): lambda c: Concatenation(c[0], c[2]),
@@ -131,16 +122,15 @@ if "-reg" in command_line_arguments:
         if not grammar.is_LL1():
             grammar.print_LL1_conflicts() 
 
-    parser = LR1Parser(grammar)
-    render_lr1(parser.automaton)
-
     precedences = [
         ("left", ["|"]),          # lowest
         ("left", ["."]),          # concatenation
         ("right", ["*", "+", "?"])  # highest (postfix)
     ]
-    parser.patch(precedences)
-    parser.print_LR1_conflicts()
+    parser = LR1Parser(grammar, precedences)
+    if "-lr1automaton" in command_line_arguments:
+        render_lr1(parser.automaton)
+
 
     tokens = scanner.scan("a.b.c|s.f")
 
@@ -157,7 +147,8 @@ if "-conf" in command_line_arguments:
     conf_tokens.register("VAL", r"[0-9]")
 
     scanner = Scanner(conf_tokens)
-    render_nfa(scanner.nfa)
+    if "-nfa" in command_line_arguments:
+        render_nfa(scanner.nfa)
 
     productions = {}
     productions["file"] = {
@@ -179,7 +170,8 @@ if "-conf" in command_line_arguments:
     grammar = Grammar(start_symbol="file", productions=productions, terminals=conf_tokens.get_names())
     
     parser = LR1Parser(grammar)
-    render_lr1(parser.automaton)
+    if "-lr1automaton" in command_line_arguments:
+        render_lr1(parser.automaton)
     parser.print_LR1_conflicts()
 
     tokens = (token for token in scanner.scan_file("test.txt") if token.type != "SPACE")
@@ -193,7 +185,8 @@ if "-debug" in command_line_arguments:
     lr1_tokens.register("d", r"d")
 
     scanner = Scanner(lr1_tokens)
-    render_nfa(scanner.nfa)
+    if "-nfa" in command_line_arguments:
+        render_nfa(scanner.nfa)
 
     
     productions = {}
@@ -201,8 +194,50 @@ if "-debug" in command_line_arguments:
     productions["C"] = {("c", "C"): None, ("d",): None}
 
     grammar = Grammar(start_symbol="S", productions=productions, terminals=lr1_tokens.get_names())
+    
     parser = LR1Parser(grammar)
-    render_lr1(parser.automaton)
+    if "-lr1automaton" in command_line_arguments:
+        render_lr1(parser.automaton)
+
+if "-error" in command_line_arguments:
+    lr1_tokens = TokenRegistry()
+    lr1_tokens.register("WHITESPACE", r"\s+")
+    lr1_tokens.register("*", r"\*")
+    lr1_tokens.register("+", r"\+")
+    lr1_tokens.register("(", r"\(")
+    lr1_tokens.register(")", r"\)")
+    lr1_tokens.register("int", r"[0-9]+")
+
+    scanner = Scanner(lr1_tokens)
+    if "-nfa" in command_line_arguments:
+        render_nfa(scanner.nfa)
+    
+    productions = {}
+    productions["S"] = {("E",): lambda c : c[0]}
+    productions["E"] = {("E", "+", "E"): lambda c: ("+", c[0], c[2]),
+                        ("E", "*", "E"): lambda c: ("*", c[0], c[2]),
+                        ("(", "E", ")"): lambda c: c[1],
+                        ("int",): lambda c: c[0]}
+
+    grammar = Grammar(start_symbol="S", productions=productions, terminals=lr1_tokens.get_names())
+    grammar.print_LL1_conflicts()
+
+    parser = LR1Parser(grammar)
+    if "-lr1automaton" in command_line_arguments:
+        render_lr1(parser.automaton)
+    
+
+    precedences = [
+        ("left",  ["+","-"]),
+        ("left",  ["*","/"]),
+    ]
+    parser.patch(precedences)
+    parser.print_LR1_conflicts()
+
+    tokens = (token for token in scanner.scan("(12 * 2)+\n(12 * 2)+\n(12 * 2)+\n(12 * 2)+ a\n(12 * 2)\n") if token.type != "WHITESPACE")
+
+    accepted, stack = parser.parse(tokens)
+    print(accepted, stack[0] if stack else None)
 
 
 

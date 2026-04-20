@@ -1,5 +1,4 @@
 from collections import defaultdict
-from specification import unicode
 from specification.grammar import concat1
 from specification.item import Item
 
@@ -74,17 +73,15 @@ class LL1Parser:
                 #reduce: an item was completed, pop the complete item and proceed with the next symbol of the item before
                 case [*rest, second, top] if top.is_complete() and second.next_symbol() == top.lhs:
 
-                    #TODO execute callbacks on successful reductions
                     children = []
                     for _ in range(len(top.rhs)):
                         children.append(semantic_stack.pop())
 
                     children.reverse()
                     if callback := self.grammar.actions[(top.lhs, top.rhs)]:
-                        node = callback(children)
+                        semantic_stack.append(callback(children))
                     else:
-                        node = children
-                    semantic_stack.append(node)
+                        semantic_stack.append(children)
                     
                     parsing_stack.pop()
                     parsing_stack[-1] = parsing_stack[-1].advance()
