@@ -32,9 +32,9 @@ class Reduction:
 class LR1Parser:
     def __init__(self, grammar, precedences=None):
         self.grammar = grammar
-        automaton = CanonicalLR1Automaton(grammar)
-        self.start_state = automaton.start_state
-        self.states, self.goto = automaton.states, automaton.transitions
+        self.automaton = CanonicalLR1Automaton(grammar)
+        self.start_state = self.automaton.start_state
+        self.states, self.goto = self.automaton.states, self.automaton.transitions
         self.action_table = self.action_table()
         if precedences:
             self.patch(precedences)
