@@ -30,7 +30,7 @@ tokens.register("(", r"\(")
 tokens.register(")", r"\)")
 tokens.register("int", r"[0-9]+")
 
-scanner = Scanner(tokens)
+lexer = Lexer(tokens)
 
 productions = {}
 productions["S"] = {("E",): lambda c : eval_ast(c[0])}
@@ -57,7 +57,7 @@ precedences = [
 parser = LR1Parser(grammar, precedences)
 # render_lr1(parser.automaton)
 
-tokens = (token for token in scanner.scan("0 + (12 * (34 + 3))") if token.type != "whitespace")
+tokens = (token for token in lexer.scan("0 + (12 * (34 + 3))") if token.type != "whitespace")
 
 accepted, stack = parser.parse(tokens)
 if accepted:

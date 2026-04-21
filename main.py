@@ -1,10 +1,10 @@
 from sys import argv as command_line_arguments
-from scanner.scanner import Scanner
+from lexer.lexer import Lexer
 from specification.token import TokenRegistry
 from specification.grammar import Grammar
 from parser.lr1_parser import LR1Parser
 from parser.ll1_parser import LL1Parser
-from scanner.abstract_regex_tree import Union, Concatenation, KleeneClosure, Optional, Plus, Symbol
+from lexer.abstract_regex_tree import Union, Concatenation, KleeneClosure, Optional, Plus, Symbol
 from visualization.graph import render_nfa, render_lr1
 
 if "-ll1" in command_line_arguments:
@@ -17,9 +17,9 @@ if "-ll1" in command_line_arguments:
     ll1_tokens.register("|", r"\|")
     ll1_tokens.register("symbol", r"[a-zA-Z]")
 
-    scanner = Scanner(ll1_tokens)
+    lexer = Lexer(ll1_tokens)
     if "-nfa" in command_line_arguments:
-        render_nfa(scanner.nfa)
+        render_nfa(lexer.nfa)
 
     def ignore():
         return lambda child: (lambda left: left)
@@ -49,7 +49,7 @@ if "-ll1" in command_line_arguments:
 
     parser = LL1Parser(grammar)
 
-    tokens = scanner.scan(r"(a|b)*cd+")
+    tokens = lexer.scan(r"(a|b)*cd+")
 
     accepted, stack = parser.parse(tokens, print_stack=("-stack" in command_line_arguments))
     print(accepted, stack[0] if stack else None)
@@ -63,9 +63,9 @@ if "-lr1" in command_line_arguments:
     lr1_tokens.register(")", r"\)")
     lr1_tokens.register("int", r"[0-9]+")
 
-    scanner = Scanner(lr1_tokens)
+    lexer = Lexer(lr1_tokens)
     if "-nfa" in command_line_arguments:
-        render_nfa(scanner.nfa)
+        render_nfa(lexer.nfa)
     
     productions = {}
     productions["S"] = {("E",): lambda c : c[0]}
@@ -85,7 +85,7 @@ if "-lr1" in command_line_arguments:
     if "-lr1automaton" in command_line_arguments:
         render_lr1(parser.automaton)
     
-    tokens = (token for token in scanner.scan("0 + (12 * (34 + 3))") if token.type != "WHITESPACE")
+    tokens = (token for token in lexer.scan("0 + (12 * (34 + 3))") if token.type != "WHITESPACE")
 
     accepted, stack = parser.parse(tokens)
     print(accepted, stack[0] if stack else None)
@@ -103,9 +103,9 @@ if "-reg" in command_line_arguments:
     reg_tokens.register("|", r"\|")
     reg_tokens.register("symbol", r"[a-zA-Z]")
 
-    scanner = Scanner(reg_tokens)
+    lexer = Lexer(reg_tokens)
     if "-nfa" in command_line_arguments:
-        render_nfa(scanner.nfa)
+        render_nfa(lexer.nfa)
 
     productions = {}
     productions["regex"] = {("regex", ".", "regex"): lambda c: Concatenation(c[0], c[2]),
@@ -132,7 +132,7 @@ if "-reg" in command_line_arguments:
         render_lr1(parser.automaton)
 
 
-    tokens = scanner.scan("a.b.c|s.f")
+    tokens = lexer.scan("a.b.c|s.f")
 
     accepted, stack = parser.parse(tokens)
     print(accepted, stack[0] if stack else None)
@@ -146,9 +146,9 @@ if "-conf" in command_line_arguments:
     conf_tokens.register("EQ", r"=")
     conf_tokens.register("VAL", r"[0-9]")
 
-    scanner = Scanner(conf_tokens)
+    lexer = Lexer(conf_tokens)
     if "-nfa" in command_line_arguments:
-        render_nfa(scanner.nfa)
+        render_nfa(lexer.nfa)
 
     productions = {}
     productions["file"] = {
@@ -174,7 +174,7 @@ if "-conf" in command_line_arguments:
         render_lr1(parser.automaton)
     parser.print_LR1_conflicts()
 
-    tokens = (token for token in scanner.scan_file("test.txt") if token.type != "SPACE")
+    tokens = (token for token in lexer.scan_file("test.txt") if token.type != "SPACE")
     accepted, stack = parser.parse(tokens)
     print(accepted, stack[0] if stack else None)
 
@@ -184,9 +184,9 @@ if "-debug" in command_line_arguments:
     lr1_tokens.register("c", r"c")
     lr1_tokens.register("d", r"d")
 
-    scanner = Scanner(lr1_tokens)
+    lexer = Lexer(lr1_tokens)
     if "-nfa" in command_line_arguments:
-        render_nfa(scanner.nfa)
+        render_nfa(lexer.nfa)
 
     
     productions = {}
@@ -208,9 +208,9 @@ if "-error" in command_line_arguments:
     lr1_tokens.register(")", r"\)")
     lr1_tokens.register("int", r"[0-9]+")
 
-    scanner = Scanner(lr1_tokens)
+    lexer = Lexer(lr1_tokens)
     if "-nfa" in command_line_arguments:
-        render_nfa(scanner.nfa)
+        render_nfa(lexer.nfa)
     
     productions = {}
     productions["S"] = {("E",): lambda c : c[0]}
@@ -234,7 +234,7 @@ if "-error" in command_line_arguments:
     parser.patch(precedences)
     parser.print_LR1_conflicts()
 
-    tokens = (token for token in scanner.scan("(12 * 2)+\n(12 * 2)+\n(12 * 2)+\n(12 * 2)+ a\n(12 * 2)\n") if token.type != "WHITESPACE")
+    tokens = (token for token in lexer.scan("(12 * 2)+\n(12 * 2)+\n(12 * 2)+\n(12 * 2)+ a\n(12 * 2)\n") if token.type != "WHITESPACE")
 
     accepted, stack = parser.parse(tokens)
     print(accepted, stack[0] if stack else None)

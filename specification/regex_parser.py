@@ -1,7 +1,6 @@
-# TODO: move to specification directory?
 import string
-from scanner.abstract_regex_tree import Symbol, Concatenation, Union, KleeneClosure, Plus, Optional
-from scanner.scanner import Scanner
+from lexer.abstract_regex_tree import Symbol, Concatenation, Union, KleeneClosure, Plus, Optional
+from lexer.lexer import Lexer
 from specification.grammar import Grammar
 from parser.ll1_parser import LL1Parser
 from parser.lr1_parser import LR1Parser
@@ -48,7 +47,7 @@ class LR1RegexParser:
         # 3. priority: detect every other character
         regex_tokens["symbol"] = Symbol(set(string.printable))
 
-        self.scanner = Scanner(regex_tokens)
+        self.lexer = Lexer(regex_tokens)
 
         productions = {}
         productions["regex"] = {
@@ -91,5 +90,5 @@ class LR1RegexParser:
 
     def parse(self, regex_string):
 
-        accepted, stack = self.parser.parse(self.scanner.scan(regex_string))
+        accepted, stack = self.parser.parse(self.lexer.scan(regex_string))
         return stack[0] if accepted else None

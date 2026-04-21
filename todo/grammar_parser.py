@@ -1,5 +1,5 @@
 from specification.token import TokenRegistry
-from scanner.scanner import Scanner
+from lexer.lexer import Lexer
 from specification.grammar import Grammar
 from parser.lr1_parser import LR1Parser
 from visualization.graph import render_nfa
@@ -25,7 +25,7 @@ class LR1GrammarParser:
 
         # grammar_tokens.register("SYMBOL", r"(\||[^\s\|;{}])+")
 
-        scanner = Scanner(grammar_tokens)
+        lexer = Lexer(grammar_tokens)
 
         productions = {}
 
@@ -61,7 +61,7 @@ class LR1GrammarParser:
         grammar = Grammar(start_symbol="production_list", productions=productions, terminals=grammar_tokens.get_names())
         parser = LR1Parser(grammar)
 
-        stream = (token for token in scanner.scan_file("todo/example_grammar_specification.txt") if token.type != "WHITESPACE")
+        stream = (token for token in lexer.scan_file("todo/example_grammar_specification.txt") if token.type != "WHITESPACE")
 
         # for t in stream:
         #     print(t)
