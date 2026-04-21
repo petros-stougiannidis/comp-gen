@@ -1,0 +1,5 @@
+S   ->  E {test_s(%0, %2)};
+E   ->  E + E
+    |   E * E {test_e2()}
+    |  ;
+A   -> A B C ;

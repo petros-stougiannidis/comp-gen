@@ -94,7 +94,7 @@ if "-lr1" in command_line_arguments:
 if "-reg" in command_line_arguments:
     # LR1
     reg_tokens = TokenRegistry()
-    reg_tokens.register(".", r".")
+    reg_tokens.register(".", r"\.")
     reg_tokens.register("*", r"\*")
     reg_tokens.register("?", r"\?")
     reg_tokens.register("+", r"\+")
@@ -239,6 +239,7 @@ if "-error" in command_line_arguments:
     accepted, stack = parser.parse(tokens)
     print(accepted, stack[0] if stack else None)
 
-
+if "-grammar_spec" in command_line_arguments:
+    import todo.grammar_parser
 
 
