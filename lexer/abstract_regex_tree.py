@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from formatting.print import pretty_set, descape
+from visualization.print import pretty_set, descape
 from lexer.nfa import NFA
 
 class Regex(ABC):

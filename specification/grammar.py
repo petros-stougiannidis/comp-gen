@@ -1,9 +1,9 @@
 from collections import defaultdict
 from itertools import combinations
 
-from specification import unicode
+from visualization import unicode
 from specification.strongly_connected_components import StronglyConnectedComponents
-from formatting.print import Sequence, pretty_set
+from visualization.print import Sequence, pretty_set
 
 class Grammar:
 
@@ -30,10 +30,7 @@ class Grammar:
             for alternative, action in productions[A].items():
                 for symbol in alternative:
                     if symbol not in non_terminals and symbol not in terminals:
-                        raise ValueError(f"{symbol} {unicode.not_element_of} (N ∪ T)")
-
-        self.terminals = set(terminals)
-        self.non_terminals = set(non_terminals)
+                        raise ValueError(f"{symbol} {unicode.not_element_of} (N {unicode.set_union} T)")
         
         self.actions = dict()
         self.delta = defaultdict(set)

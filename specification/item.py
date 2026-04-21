@@ -1,4 +1,4 @@
-from formatting.print import Sequence, pretty_set
+from visualization.print import Sequence, pretty_set
 
 class Item:
     def __init__(self, lhs, rhs, dot=0):

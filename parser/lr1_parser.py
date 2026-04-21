@@ -1,6 +1,6 @@
 from specification.item import LR1Item
 from parser.canonical_lr1_automaton import CanonicalLR1Automaton
-from formatting.print import Sequence
+from visualization.print import Sequence
 from collections import defaultdict
 
 class Shift:

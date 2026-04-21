@@ -22,6 +22,7 @@ class Lexer:
         for token, ast in self.tokens:
             final_states = (ast.last | ({ast} if ast.empty else set())) & remaining_final_states
             for final_state in final_states:
+                # TODO: move this entirely into visualization layer
                 final_state.accepted_token = f'accepts: {token}'
             self.exclusive_final_states.append((token, final_states))
             remaining_final_states -= final_states

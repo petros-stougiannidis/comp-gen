@@ -3,7 +3,7 @@ import tempfile
 import os
 import string
 
-from formatting.print import pretty_set
+from visualization.print import pretty_set
 
 def render_lr1(lr1_automaton):
     state_id = {lr1_automaton.start_state : 0}
