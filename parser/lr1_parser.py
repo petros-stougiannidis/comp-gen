@@ -130,7 +130,7 @@ class LR1Parser:
                 token for token, actions in self.action_table[current_state].items()
                 if actions
             ]
-            raise SyntaxError(f"Unexpected token: {token}. Expected: {expected}")
+            raise SyntaxError(f"Unexpected token: {token} Expected: {expected}")
         # TODO: right now, if action table is not deterministic, it chooses non-deterministically
         return next(iter(actions)) 
 

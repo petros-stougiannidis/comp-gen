@@ -26,12 +26,19 @@ class Grammar:
         if set(terminals) & set(non_terminals):
             raise ValueError(f"The set of terminals and nonterminals are not disjoint: {unicode.Sigma} {unicode.set_union} N = {set(terminals) & set(non_terminals)}")
 
+        for A in productions.keys():
+            for alternative, action in productions[A].items():
+                for symbol in alternative:
+                    if symbol not in non_terminals and symbol not in terminals:
+                        raise ValueError(f"{symbol} {unicode.not_element_of} (N ∪ T)")
+
         self.terminals = set(terminals)
         self.non_terminals = set(non_terminals)
         
         self.actions = dict()
         self.delta = defaultdict(set)
-        for A, d in productions.items():
+        # TODO: prune actions after reduce()
+        for A in productions.keys():
             for alternative, action in productions[A].items(): 
                 self.delta[A].add(alternative)
                 self.actions[(A, alternative)] = action
@@ -45,6 +52,7 @@ class Grammar:
         self.start_symbol = self.artificial_start_symbol
 
         self.reduce()
+        # TODO: check if start symbol is still productive
         self.compute_empty_attributes()
         self.compute_first1_sets()
         self.compute_follow1_sets()
