@@ -3,7 +3,7 @@ class TokenRegistry:
     def __init__(self):
         self.tokens = {}
         # lazy import because of circular dependency
-        from scanner.regex_parser import LR1RegexParser
+        from specification.regex_parser import LR1RegexParser
         self.regex_parser = LR1RegexParser()
 
     def register(self, name, pattern):

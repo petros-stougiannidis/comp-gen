@@ -1,3 +1,5 @@
+# TODO: rename to lexer?
+
 from functools import reduce
 from scanner.abstract_regex_tree import Regex, Union
 from specification.token import Token, TokenRegistry

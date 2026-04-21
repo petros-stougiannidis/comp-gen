@@ -1,3 +1,4 @@
+# TODO: move to specification directory?
 import string
 from scanner.abstract_regex_tree import Symbol, Concatenation, Union, KleeneClosure, Plus, Optional
 from scanner.scanner import Scanner
