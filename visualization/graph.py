@@ -1,6 +1,7 @@
 import graphviz
 import tempfile
 import os
+import string
 
 from formatting.print import pretty_set
 
@@ -48,6 +49,26 @@ def render_lr1(lr1_automaton):
 
 def render_nfa(nfa):
 
+    def dot_label(state):
+        if hasattr(state, "accepted_token") and state.accepted_token:
+            return f'{state.accepted_token}\\nid={state.id}'
+        if hasattr(state, "id"):
+            return f'id={state.id}'
+        return str(state)
+
+    def compress_set(complete_set):
+        new_set = set()
+        if set(string.ascii_lowercase) <= complete_set:
+            complete_set -= set(string.ascii_lowercase)
+            new_set |= {"[a-z]"}
+        if set(string.ascii_uppercase) <= complete_set:
+            complete_set -= set(string.ascii_uppercase)
+            new_set |= {"[A-Z]"}
+        if set(string.digits) <= complete_set:
+            complete_set -= set(string.digits)
+            new_set |= {"[0-9]"}
+        return new_set | complete_set
+
     def shape_of(state):
         return 'doublecircle' if state in nfa.final_states else 'circle'
 
@@ -62,9 +83,10 @@ def render_nfa(nfa):
                 states.add(state)
     
     for state in states:
+        
         automaton.node(
             repr(state), 
-            repr(state), 
+            dot_label(state), 
             shape='doublecircle' if state in nfa.final_states else 'circle'
         )
 
@@ -75,7 +97,7 @@ def render_nfa(nfa):
                 automaton.edge(
                     repr(source_state), 
                     repr(state), 
-                    label=repr(pretty_set(symbol))
+                    label=repr(pretty_set(compress_set(symbol)))
                 )
 
     for i, state in enumerate(nfa.start_states):

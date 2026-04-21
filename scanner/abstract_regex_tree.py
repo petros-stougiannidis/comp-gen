@@ -19,19 +19,18 @@ class Regex(ABC):
         pass
 
     def to_nfa(self):
-        start_state = f"start_{self.id}"
         transitions = defaultdict(lambda: defaultdict(set))
 
         final_states = set(self.last)
         if self.empty:
-            final_states.add(start_state)
+            final_states.add(self.first)
 
         for leaf in self.first:
-            transitions[start_state][leaf.label].add(leaf)
+            transitions[self][leaf.label].add(leaf)
 
         self.berry_sethi(self.next, transitions)
 
-        return NFA({start_state}, final_states, transitions)
+        return NFA({self}, final_states, transitions)
 
 class Symbol(Regex):
     def __init__(self, label):
@@ -40,6 +39,7 @@ class Symbol(Regex):
         self.empty = False
         self.first = {self}
         self.last = {self}
+        self.accepted_token = None
 
     def berry_sethi(self, next_states, transitions):
         self.next = next_states
@@ -47,7 +47,11 @@ class Symbol(Regex):
             transitions[self][leaf.label].add(leaf)
 
     def __repr__(self):
-        return f'{pretty_set(self.label)}id={self.id}'
+        if self.accepted_token:
+            return f'id={self.id}'
+        else:
+            return f'id={self.id}'
+
 
     def __str__(self):
         return pretty_set(self.label) if len(self.label) >= 2 else descape(next(iter(self.label)))
