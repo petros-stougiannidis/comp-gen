@@ -2,8 +2,8 @@ from sys import argv as command_line_arguments
 from lexer.lexer import Lexer
 from specification.token import TokenRegistry
 from specification.grammar import Grammar
-from parser.lr1_parser import LR1Parser
-from parser.ll1_parser import LL1Parser
+from parser.lr1 import LR1Parser
+from parser.ll1 import LL1Parser
 from lexer.abstract_regex_tree import Union, Concatenation, KleeneClosure, Optional, Plus, Symbol
 from visualization.graph import render_nfa, render_lr1
 
@@ -239,7 +239,12 @@ if "-error" in command_line_arguments:
     accepted, stack = parser.parse(tokens)
     print(accepted, stack[0] if stack else None)
 
+from specification.grammar_parser import LR1GrammarParser
 if "-grammar_spec" in command_line_arguments:
-    import todo.grammar_parser
+
+    grammar_parser = LR1GrammarParser()
+    productions = grammar_parser.parse_file("todo/example_grammar_specification.txt")
+
+    
 
 
