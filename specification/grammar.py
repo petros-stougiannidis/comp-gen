@@ -8,8 +8,6 @@ from visualization.print import Sequence, pretty_set
 class Grammar:
 
     def __init__(self, start_symbol, productions, terminals):
-        self.start_symbol = start_symbol
-
         non_terminals = set(productions.keys())
 
         if not start_symbol in set(non_terminals):
@@ -32,28 +30,32 @@ class Grammar:
                     if symbol not in non_terminals and symbol not in terminals:
                         raise ValueError(f"{symbol} {unicode.not_element_of} (N {unicode.set_union} T)")
         
-        self.actions = dict()
+        
         self.delta = defaultdict(set)
-        # TODO: prune actions after reduce()
         for A in productions.keys():
             for alternative, action in productions[A].items(): 
                 self.delta[A].add(alternative)
-                self.actions[(A, alternative)] = action
         
         self.terminals = set(terminals) | {"$"}
         self.non_terminals = set(non_terminals) | {"S'"}
 
         self.artificial_start_symbol = "S'"
-        self.original_start_symbol = self.start_symbol
-        self.delta[self.artificial_start_symbol] = {(self.start_symbol,)}
-        self.start_symbol = self.artificial_start_symbol
+        self.original_start_symbol = start_symbol
+        self.delta[self.artificial_start_symbol] = {(self.original_start_symbol,)}
+        self.start_symbol = self.artificial_start_symbol # used internally
 
         self.reduce()
-        # TODO: check if start symbol is still productive
+        if not self.delta:
+            raise ValueError(f"Grammar defines an empty language; the start symbol cannot derive any terminal strings.")
         self.compute_empty_attributes()
         self.compute_first1_sets()
         self.compute_follow1_sets()
         self.compute_LL1_conflicts()
+
+        self.actions = dict()
+        for A in productions.keys():
+            for alternative, action in productions[A].items():
+                self.actions[(A, alternative)] = action
 
         
     def productions(self):
@@ -104,11 +106,14 @@ class Grammar:
                         if B in self.non_terminals:
                             currenlty_reachable_non_terminals.add(B)
 
-        reachable_and_productive_productions = {A: set(productive_productions[A]) for A in reachable_non_terminals}
-        self.delta = reachable_and_productive_productions
-
-        reachable_and_productive_non_terminals = reachable_non_terminals
-        self.non_terminals = reachable_and_productive_non_terminals
+        # reachable and productive productions
+        self.delta = {
+            A: productive_productions[A]
+            for A in reachable_non_terminals
+            if A in productive_productions and productive_productions[A]
+        }
+        # reachable and productive nonterminals
+        self.non_terminals = set(self.delta.keys())
 
     # computes which nonterminals are capable of producing the empty word
     def compute_empty_attributes(self):
@@ -245,10 +250,7 @@ class Grammar:
         
         for A in self.delta:
             for i, rhs in enumerate(self.delta[A]):
-                if len(rhs) == 0:
-                    string += f"{A} {unicode.right_arrow} {unicode.epsilon}"
-                else:
-                    string += f"{A} {unicode.right_arrow} {Sequence(rhs)}"
+                string += f"{A} {unicode.right_arrow} {Sequence(rhs)}"
                 if i < len(self.delta[A])-1:
                     string += " | "
                 else:

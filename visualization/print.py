@@ -1,6 +1,5 @@
 class Sequence(tuple):
     def __repr__(self):
-        # TODO: do i want the epsilon here?
         return " ".join(map(str, self)) if self else 'ε'
 
     def __bool__(self):

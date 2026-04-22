@@ -56,7 +56,6 @@ class LR1GrammarParser:
             ("SYMBOL", "symbol_seq"): lambda c: [c[0]] + c[1], #wrap into list for concatenation into ssequence of symbols
             ("ESCAPED", "symbol_seq"): lambda c: [c[0][1]] + c[1], #wrap into list for concatenation into ssequence of symbols
             tuple(): lambda c: [], # base case: empty list
-            ("AA",):None
         }
 
         grammar = Grammar(start_symbol="production_list", productions=productions, terminals=grammar_tokens.get_names())
@@ -68,7 +67,8 @@ class LR1GrammarParser:
         #     print(t)
         accepted, stack = parser.parse(stream)
         if accepted:
-            print(stack[0])
+            grammar = Grammar(start_symbol="S",productions=stack[0],terminals={'a', 'b', 'c', '+', '*'})
+            print(grammar, grammar.delta)
 
 
 LR1GrammarParser()
