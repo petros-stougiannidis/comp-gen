@@ -243,7 +243,8 @@ from specification.grammar_parser import LR1GrammarParser
 if "-grammar_spec" in command_line_arguments:
 
     grammar_parser = LR1GrammarParser()
-    productions = grammar_parser.parse_file("todo/example_grammar_specification.txt")
+    productions = grammar_parser.parse_file("test_files/grammar_specification.txt")
+    print(productions)
 
     
 

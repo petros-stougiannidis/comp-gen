@@ -5,6 +5,7 @@ from parser.lr1 import LR1Parser
 from visualization.graph import render_nfa
 
 # TODO: implement parsing of parser actions
+# TODO: investigate right workings of escaping mechanisms
 class LR1GrammarParser:
     
     def __init__(self):
@@ -18,7 +19,7 @@ class LR1GrammarParser:
         grammar_tokens.register("ACTION", r"{[^{}]*}")
         grammar_tokens.register("ESCAPED", r"\\.")
         grammar_tokens.register("SYMBOL", r"[^\s\|;{}]+")
-        
+    
         self.lexer = Lexer(grammar_tokens)
 
         productions = {}

@@ -5,6 +5,11 @@ from visualization import unicode
 from specification.strongly_connected_components import StronglyConnectedComponents
 from visualization.print import Sequence, pretty_set
 
+# TODO: design and implement
+class Productions:
+    pass
+
+
 class Grammar:
 
     def __init__(self, start_symbol, productions, terminals):

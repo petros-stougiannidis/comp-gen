@@ -23,7 +23,8 @@ class Regex(ABC):
 
         final_states = set(self.last)
         if self.empty:
-            final_states.add(self.first)
+            # TODO: did add -> update fix the bug?
+            final_states.update(self.first)
 
         for leaf in self.first:
             transitions[self][leaf.label].add(leaf)
