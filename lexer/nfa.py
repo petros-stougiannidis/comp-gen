@@ -14,8 +14,6 @@ class NFA:
             for symbol_set, destination_states in self.transitions[state].items():
                 if symbol in symbol_set:
                     result |= destination_states
-                    # TODO: investigate this break
-                    # break
         return result
 
     def accepts(self, word):

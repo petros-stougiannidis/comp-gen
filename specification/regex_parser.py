@@ -2,8 +2,8 @@ import string
 from lexer.abstract_regex_tree import Symbol, Concatenation, Union, KleeneClosure, Plus, Optional
 from lexer.lexer import Lexer
 from specification.grammar import Grammar
-from parser.ll1_parser import LL1Parser
-from parser.lr1_parser import LR1Parser
+from parser.ll1 import LL1Parser
+from parser.lr1 import LR1Parser
 from functools import reduce
 
 regex_meta_characters = set("|*+?()[]-\\^.")
